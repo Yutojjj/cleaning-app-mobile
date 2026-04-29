@@ -123,7 +123,8 @@ export default function SalaryCalcScreen() {
   };
 
   const exportCSV = async () => {
-    let csvString = "名前,出勤日数,実労働時間,所定内労働時間,残業時間,深夜時間,DM回数,基本給,残業手当,深夜手当,DM手当,総支給額(給与),差し引き額(日払い等),差引支給額\n";
+    // 文字化け対策のため、先頭にBOM (\uFEFF) を追加
+    let csvString = "\uFEFF名前,出勤日数,実労働時間,所定内労働時間,残業時間,深夜時間,DM回数,基本給,残業手当,深夜手当,DM手当,総支給額(給与),差し引き額(日払い等),差引支給額\n";
     staffList.forEach(staff => {
       const s = getStats(staff, curMonthKey);
       csvString += `${staff.name},${s.workingDays},${s.actualHours},${s.regularHours},${s.overtimeHours},${s.nightHours},${s.dmCount},${s.baseSalary},${s.overtimeSalary},${s.nightSalary},${s.dmAllowance},${s.expectedSalary},${s.advancePayment},${s.finalSalary}\n`;
@@ -140,7 +141,6 @@ export default function SalaryCalcScreen() {
       link.click();
       document.body.removeChild(link);
     } else {
-      // ★ TS型エラー強制バイパス処理
       const fs: any = FileSystem;
       const dir = fs.documentDirectory;
       

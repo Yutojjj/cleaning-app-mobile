@@ -8,7 +8,7 @@ import {
   signInWithEmailAndPassword,
   signOut
 } from 'firebase/auth';
-import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
+import { addDoc, collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator, Alert, Dimensions, Modal,
@@ -230,16 +230,27 @@ export default function HomeScreen() {
       Alert.alert("申請不可", "今月の実績は既に提出済みのため、打刻修正はできません。");
       return;
     }
-    if (GAS_WEB_APP_URL === 'YOUR_GAS_WEB_APP_URL_HERE') {
-      if (actionType === '打刻修正') setCorrectionModalVisible(false);
-      return;
-    }
+    
     setIsSending(true);
     try {
-      await fetch(GAS_WEB_APP_URL, { 
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, 
-        body: JSON.stringify({ actionType, site: 'WARP', staffName: user?.name, role: userRole, location: locationText, reason: actionType === '打刻修正' ? correctionReason : '', timestamp: new Date().toISOString() }) 
+      // ⑦ Firestore への履歴保存処理の追加
+      await addDoc(collection(db, 'timecards'), {
+        uid: user?.uid,
+        name: user?.name,
+        role: userRole,
+        actionType,
+        location: locationText,
+        reason: actionType === '打刻修正' ? correctionReason : '',
+        timestamp: new Date().toISOString()
       });
+
+      if (GAS_WEB_APP_URL !== 'YOUR_GAS_WEB_APP_URL_HERE') {
+        await fetch(GAS_WEB_APP_URL, { 
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, 
+          body: JSON.stringify({ actionType, site: 'WARP', staffName: user?.name, role: userRole, location: locationText, reason: actionType === '打刻修正' ? correctionReason : '', timestamp: new Date().toISOString() }) 
+        });
+      }
+      
       Alert.alert("完了", `${actionType} を記録しました`);
       if (actionType === '打刻修正') { setCorrectionReason(''); setCorrectionModalVisible(false); }
     } catch (error) { Alert.alert("通信エラー"); } 

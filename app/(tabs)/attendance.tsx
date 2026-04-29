@@ -8,18 +8,84 @@ import { auth, db } from '../../firebase';
 const { height: screenHeight } = Dimensions.get('window');
 const SITES = ['warp', 'thewarp', 'ラドンナ'];
 
-const JissekiTimePicker = ({ value, onChange }: { value: string, onChange: (v: string) => void }) => {
-  const isActive = value && value.includes('-');
-  const [start, setStart] = useState(isActive ? value.split('-')[0] : '19:00');
-  const [end, setEnd] = useState(isActive ? value.split('-')[1] : '24:00');
-  useEffect(() => { if (isActive) onChange(`${start}-${end}`); }, [start, end]);
+// ⑧ 実績時間をピッカーで選択できるように修正したコンポーネント
+const JissekiTimePicker = ({ value, onChange, disabled }: { value: string, onChange: (v: string) => void, disabled: boolean }) => {
+  const [startH, setStartH] = useState('19');
+  const [startM, setStartM] = useState('00');
+  const [endH, setEndH] = useState('24');
+  const [endM, setEndM] = useState('00');
+  const [pickerConfig, setPickerConfig] = useState<{ visible: boolean, type: 'startH'|'startM'|'endH'|'endM' } | null>(null);
+
+  useEffect(() => {
+    if (value && value.includes('-')) {
+      const [s, e] = value.split('-');
+      setStartH(s.split(':')[0] || '19'); setStartM(s.split(':')[1] || '00');
+      setEndH(e.split(':')[0] || '24'); setEndM(e.split(':')[1] || '00');
+    }
+  }, [value]);
+
+  const applyTime = (sh: string, sm: string, eh: string, em: string) => {
+    const finalEm = (eh === '24') ? '00' : em;
+    onChange(`${sh}:${sm}-${eh}:${finalEm}`);
+  };
+
+  const renderPickerModal = () => {
+    if (!pickerConfig) return null;
+    const isHour = pickerConfig.type.endsWith('H');
+    // 時は0〜24、分は0〜55(5分刻み)
+    const data = isHour ? Array.from({length: 25}, (_, i) => String(i).padStart(2, '0')) : Array.from({length: 12}, (_, i) => String(i * 5).padStart(2, '0'));
+
+    return (
+      <Modal visible={true} transparent animationType="fade">
+        <TouchableOpacity style={{flex:1, backgroundColor:'rgba(0,0,0,0.5)', justifyContent:'center', alignItems:'center'}} onPress={() => setPickerConfig(null)}>
+          <View style={{backgroundColor:'#FFF', width:'70%', height: 350, borderRadius:20, padding:10}}>
+            <Text style={{textAlign:'center', fontWeight:'bold', padding:15, borderBottomWidth:1, borderColor:'#EEE'}}>{isHour ? '時を選択' : '分を選択'}</Text>
+            <ScrollView>
+              {data.map(item => (
+                <TouchableOpacity key={item} style={{padding:15, alignItems:'center', borderBottomWidth:1, borderColor:'#F1F5F9'}} onPress={() => {
+                  let nextSh = startH, nextSm = startM, nextEh = endH, nextEm = endM;
+                  if(pickerConfig.type === 'startH') { nextSh = item; setStartH(item); }
+                  if(pickerConfig.type === 'startM') { nextSm = item; setStartM(item); }
+                  if(pickerConfig.type === 'endH') { nextEh = item; setEndH(item); }
+                  if(pickerConfig.type === 'endM') { nextEm = item; setEndM(item); }
+                  applyTime(nextSh, nextSm, nextEh, nextEm);
+                  setPickerConfig(null);
+                }}><Text style={{fontSize:22, fontWeight:'bold'}}>{item}</Text></TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+    );
+  };
+
+  if (disabled) {
+    return <View style={localStyles.readonlyBox}><Text style={{ color: '#1e293b' }}>{value}</Text></View>;
+  }
+
+  if (!value) {
+    return (
+      <TouchableOpacity style={{ backgroundColor: '#F8FAFC', padding: 15, borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', alignItems: 'center' }} onPress={() => applyTime('19', '00', '24', '00')}>
+        <Text style={{ color: '#64748b' }}>未設定 (タップして時間を入力)</Text>
+      </TouchableOpacity>
+    );
+  }
+
   return (
-    <View style={{ backgroundColor: '#F8FAFC', padding: 15, borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0' }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <TextInput style={localStyles.timeInput} value={start} onChangeText={setStart} keyboardType="numeric" onBlur={() => onChange(`${start}-${end}`)} />
-        <Text style={{ fontSize: 24, color: '#CBD5E1' }}>-</Text>
-        <TextInput style={localStyles.timeInput} value={end} onChangeText={setEnd} keyboardType="numeric" onBlur={() => onChange(`${start}-${end}`)} />
+    <View style={{ backgroundColor: '#F8FAFC', padding: 15, borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', alignItems: 'center' }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <TouchableOpacity style={localStyles.dropdownBtn} onPress={() => setPickerConfig({visible:true, type:'startH'})}><Text style={localStyles.dropdownText}>{startH}</Text><Ionicons name="caret-down" size={14}/></TouchableOpacity>
+        <Text style={{fontWeight:'bold', marginHorizontal:5}}>:</Text>
+        <TouchableOpacity style={localStyles.dropdownBtn} onPress={() => setPickerConfig({visible:true, type:'startM'})}><Text style={localStyles.dropdownText}>{startM}</Text><Ionicons name="caret-down" size={14}/></TouchableOpacity>
+        <Text style={{fontSize: 20, marginHorizontal: 15, color:'#CBD5E1'}}>〜</Text>
+        <TouchableOpacity style={localStyles.dropdownBtn} onPress={() => setPickerConfig({visible:true, type:'endH'})}><Text style={localStyles.dropdownText}>{endH}</Text><Ionicons name="caret-down" size={14}/></TouchableOpacity>
+        <Text style={{fontWeight:'bold', marginHorizontal:5}}>:</Text>
+        <TouchableOpacity style={localStyles.dropdownBtn} onPress={() => setPickerConfig({visible:true, type:'endM'})}><Text style={localStyles.dropdownText}>{endH === '24' ? '00' : endM}</Text><Ionicons name="caret-down" size={14}/></TouchableOpacity>
       </View>
+      <TouchableOpacity style={{ marginTop: 15, padding: 8, backgroundColor: '#F1F5F9', borderRadius: 8 }} onPress={() => onChange('')}>
+        <Text style={{ color: '#64748b', fontSize: 12, fontWeight: 'bold' }}>時間をクリア</Text>
+      </TouchableOpacity>
+      {renderPickerModal()}
     </View>
   );
 };
@@ -119,7 +185,6 @@ export default function AttendanceScreen() {
     Alert.alert("送信確認", "実績を確定して送信しますか？", [
       { text: "キャンセル" },
       { text: "はい", onPress: async () => {
-        // ★ 修正箇所： === を : に修正しました
         const nextStatus = { ...monthlyStatus, [currentMonthKey]: 'submitted' };
         await updateDoc(doc(db, 'users', currentUid!), { monthlyStatus: nextStatus });
         setMonthlyStatus(nextStatus);
@@ -134,6 +199,20 @@ export default function AttendanceScreen() {
     setUserDmItems(nextItems);
     setNewDmInput('');
     await updateDoc(doc(db, 'users', currentUid!), { dmItems: nextItems });
+  };
+
+  // ⑧ DM項目の削除処理
+  const deleteDmItemFromUser = async (itemToRemove: string) => {
+    Alert.alert('確認', `「${itemToRemove}」を削除しますか？`, [
+      { text: 'キャンセル', style: 'cancel' },
+      { text: '削除', style: 'destructive', onPress: async () => {
+          const nextItems = userDmItems.filter(i => i !== itemToRemove);
+          setUserDmItems(nextItems);
+          setSelectedDmList(prev => prev.filter(i => i !== itemToRemove)); // 選択中リストからも解除
+          await updateDoc(doc(db, 'users', currentUid!), { dmItems: nextItems });
+        }
+      }
+    ]);
   };
 
   const toggleDmSelection = (item: string) => {
@@ -195,13 +274,23 @@ export default function AttendanceScreen() {
                 }
               }
 
+              // ⑥ 文字切れ対策のため、「19:00-24:00」を「19:00 \n~24:00」と表示用に改行を入れる
+              let formattedPlannedTime = plannedTime;
+              if (formattedPlannedTime.includes('-')) {
+                formattedPlannedTime = formattedPlannedTime.replace('-', '\n~');
+              }
+              let formattedDakokuTime = dakokuTimeDisplay;
+              if (formattedDakokuTime.includes('-')) {
+                formattedDakokuTime = formattedDakokuTime.replace('-', '\n~');
+              }
+
               return (
                 <TouchableOpacity key={i} style={[localStyles.dayCell, (!!plannedTime || !!dakokuTimeDisplay) && localStyles.dayCellActive, eventTitle && { backgroundColor: '#FFFBEB' }]} onPress={() => day && handleDayPress(dateKey)}>
                   <Text style={localStyles.dayNum}>{day || ''}</Text>
                   {eventTitle && <View style={localStyles.eventBadge}><Text style={localStyles.eventText} numberOfLines={1}>📌 {eventTitle}</Text></View>}
                   
-                  {!!plannedTime && <Text style={localStyles.plannedText} numberOfLines={1}>{plannedTime}</Text>}
-                  {!!dakokuTimeDisplay && <Text style={localStyles.dakokuText} numberOfLines={1}>{dakokuTimeDisplay} 打刻</Text>}
+                  {!!plannedTime && <Text style={localStyles.plannedText}>{formattedPlannedTime}</Text>}
+                  {!!dakokuTimeDisplay && <Text style={localStyles.dakokuText}>{formattedDakokuTime}</Text>}
                   {dmCountDisplay > 0 && <Text style={{ fontSize: 8, color: '#10B981', fontWeight: 'bold' }}>DM: {dmCountDisplay}</Text>}
                 </TouchableOpacity>
               );
@@ -218,15 +307,16 @@ export default function AttendanceScreen() {
             <ScrollView showsVerticalScrollIndicator={false}>
               <Text style={localStyles.label}>打刻時間 (修正不可)</Text>
               <View style={localStyles.readonlyBox}><Text style={{ color: '#94a3b8' }}>{dakokuTime}</Text><Ionicons name="lock-closed" size={16} color="#94a3b8" /></View>
+              
               <Text style={localStyles.label}>実績時間</Text>
-              {isMonthLocked ? <View style={localStyles.readonlyBox}><Text>{jissekiTime}</Text></View> : <JissekiTimePicker value={jissekiTime} onChange={setJissekiTime} />}
+              <JissekiTimePicker value={jissekiTime} onChange={setJissekiTime} disabled={isMonthLocked} />
               
               <View style={{ marginVertical: 15, borderBottomWidth: 1, borderColor: '#F1F5F9' }} />
 
               <Text style={localStyles.label}>DM (1件につき250円追加)</Text>
               {!isMonthLocked && (
                 <View style={{ flexDirection: 'row', marginBottom: 15 }}>
-                  <TextInput style={[localStyles.timeInput, { flex: 1, textAlign: 'left', marginRight: 10, width: 'auto' }]} placeholder="DM項目を新規追加..." value={newDmInput} onChangeText={setNewDmInput} />
+                  <TextInput style={{ backgroundColor: '#F8FAFC', padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#CBD5E1', flex: 1, marginRight: 10 }} placeholder="DM項目を新規追加..." value={newDmInput} onChangeText={setNewDmInput} />
                   <TouchableOpacity style={{ backgroundColor: '#1e293b', justifyContent: 'center', paddingHorizontal: 15, borderRadius: 8 }} onPress={addDmItemToUser}>
                     <Text style={{ color: '#FFF', fontWeight: 'bold' }}>追加</Text>
                   </TouchableOpacity>
@@ -238,9 +328,17 @@ export default function AttendanceScreen() {
                 {userDmItems.map(item => {
                   const isSelected = selectedDmList.includes(item);
                   return (
-                    <TouchableOpacity key={item} disabled={isMonthLocked} style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: isSelected ? '#10B981' : '#CBD5E1', backgroundColor: isSelected ? '#D1FAE5' : '#F8FAFC' }} onPress={() => toggleDmSelection(item)}>
-                      <Text style={{ color: isSelected ? '#065F46' : '#64748b', fontWeight: 'bold' }}>{item}</Text>
-                    </TouchableOpacity>
+                    <View key={item} style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 5 }}>
+                      <TouchableOpacity disabled={isMonthLocked} style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: isSelected ? '#10B981' : '#CBD5E1', backgroundColor: isSelected ? '#D1FAE5' : '#F8FAFC' }} onPress={() => toggleDmSelection(item)}>
+                        <Text style={{ color: isSelected ? '#065F46' : '#64748b', fontWeight: 'bold' }}>{item}</Text>
+                      </TouchableOpacity>
+                      {/* ⑧ 個別のDM項目を削除できるボタン */}
+                      {!isMonthLocked && (
+                        <TouchableOpacity onPress={() => deleteDmItemFromUser(item)} style={{ marginLeft: -12, marginTop: -20, backgroundColor: '#EF4444', borderRadius: 12, width: 22, height: 22, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#FFF' }}>
+                          <Ionicons name="close" size={14} color="#FFF" />
+                        </TouchableOpacity>
+                      )}
+                    </View>
                   );
                 })}
               </View>
@@ -274,14 +372,15 @@ const localStyles = StyleSheet.create({
   dayCell: { width: '14.28%', height: screenHeight / 8, borderBottomWidth: 0.5, borderRightWidth: 0.5, borderColor: '#F1F5F9', alignItems: 'center', padding: 2 },
   dayCellActive: { backgroundColor: '#F8FAFC' },
   dayNum: { fontSize: 14, fontWeight: 'bold' },
-  plannedText: { color: '#64748b', fontSize: 9, marginTop: 2, fontWeight: 'bold' },
-  dakokuText: { color: '#10B981', fontSize: 9, marginTop: 2, fontWeight: 'bold' },
+  plannedText: { color: '#64748b', fontSize: 8, marginTop: 2, fontWeight: 'bold', textAlign: 'center' },
+  dakokuText: { color: '#10B981', fontSize: 8, marginTop: 2, fontWeight: 'bold', textAlign: 'center' },
   eventBadge: { backgroundColor: '#FEF3C7', padding: 1, borderRadius: 3, width: '90%', marginTop: 2 },
   eventText: { fontSize: 7, color: '#92400E', textAlign: 'center', fontWeight: 'bold' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
   modalTitle: { fontSize: 20, fontWeight: 'bold' },
   label: { fontSize: 14, color: '#64748b', marginBottom: 5 },
   readonlyBox: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: '#F1F5F9', padding: 15, borderRadius: 12, marginBottom: 15 },
-  timeInput: { backgroundColor: '#FFF', padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#CBD5E1', width: 90, textAlign: 'center', fontSize: 16 },
+  dropdownBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, backgroundColor: '#FFF', borderRadius: 8, borderWidth: 1, borderColor: '#CBD5E1' },
+  dropdownText: { fontSize: 18, fontWeight: 'bold', color: '#1e293b', marginRight: 5 },
   goldBtn: { backgroundColor: '#B8860B', padding: 15, borderRadius: 12, alignItems: 'center', marginTop: 15 },
 });

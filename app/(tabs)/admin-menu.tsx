@@ -1,9 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as FileSystem from 'expo-file-system';
 import { useRouter } from 'expo-router';
+import * as Sharing from 'expo-sharing';
 import { signOut } from 'firebase/auth';
 import { collection, getDocs } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { Platform, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Platform, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { auth, db } from '../../firebase';
 
 export default function AdminMenuScreen() {
@@ -29,7 +31,58 @@ export default function AdminMenuScreen() {
   }, []);
 
   const handleLogout = async () => {
-    try { await signOut(auth); router.replace('/'); } catch (error) {}
+    try { 
+      // 先にルート（ログイン画面があるタブ）に遷移してからログアウト処理を行うことでバグを回避
+      router.replace('/');
+      setTimeout(async () => {
+        await signOut(auth);
+      }, 100);
+    } catch (error) {}
+  };
+
+  const exportTimecardsCSV = async () => {
+    try {
+      const snap = await getDocs(collection(db, 'timecards'));
+      let csvString = "\uFEFF日時,名前,アクション,位置情報,理由\n";
+      
+      const records: any[] = [];
+      snap.forEach(d => { records.push(d.data()); });
+      
+      // 日時順に並び替え
+      records.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+      records.forEach(data => {
+        const dateStr = new Date(data.timestamp).toLocaleString('ja-JP');
+        csvString += `${dateStr},${data.name},${data.actionType},"${data.location || ''}","${data.reason || ''}"\n`;
+      });
+
+      if (Platform.OS === 'web') {
+        const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", `timecards_history.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else {
+        const fs: any = FileSystem;
+        const dir = fs.documentDirectory;
+        if (!dir) { Alert.alert("エラー", "ファイルシステムにアクセスできません"); return; }
+        
+        const fileUri = `${dir}timecards_history.csv`;
+        await fs.writeAsStringAsync(fileUri, csvString, { encoding: 'utf8' });
+        
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(fileUri);
+        } else {
+          Alert.alert("エラー", "CSV出力・共有機能がサポートされていません");
+        }
+      }
+    } catch (error) {
+      Alert.alert("エラー", "履歴の出力に失敗しました");
+    }
   };
 
   return (
@@ -75,6 +128,14 @@ export default function AdminMenuScreen() {
           <View style={styles.textContainer}>
             <Text style={styles.menuBtnTitle}>アカウント管理</Text>
             <Text style={styles.menuBtnSub}>スタッフ情報の編集・単価設定</Text>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.menuBtnCard} onPress={exportTimecardsCSV}>
+          <Ionicons name="download-outline" size={40} color="#B8860B" />
+          <View style={styles.textContainer}>
+            <Text style={styles.menuBtnTitle}>打刻履歴CSV出力</Text>
+            <Text style={styles.menuBtnSub}>全スタッフの打刻時間と位置情報を出力します</Text>
           </View>
         </TouchableOpacity>
 

@@ -47,7 +47,7 @@ const CustomTimePicker = ({ site, value, onChange }: { site: string, value: any,
   const renderPickerModal = () => {
     if (!pickerConfig) return null;
     const isHour = pickerConfig.type.endsWith('H');
-    const data = isHour ? Array.from({length: 24}, (_, i) => String(i).padStart(2, '0')).concat(['24', 'LAST']) : Array.from({length: 12}, (_, i) => String(i * 5).padStart(2, '0'));
+    const data = isHour ? Array.from({length: 25}, (_, i) => String(i).padStart(2, '0')) : Array.from({length: 12}, (_, i) => String(i * 5).padStart(2, '0'));
     return (
       <Modal visible={true} transparent animationType="fade">
         <TouchableOpacity style={{flex:1, backgroundColor:'rgba(0,0,0,0.5)', justifyContent:'center', alignItems:'center'}} onPress={() => setPickerConfig(null)}>
@@ -106,7 +106,6 @@ export default function ShiftInputScreen() {
   const [shiftTemplates, setShiftTemplates] = useState<string[]>(['19:00-24:00', '18:00-23:00']);
   const [newTemplateInput, setNewTemplateInput] = useState('');
   
-  // シフト期間設定
   const [shiftConfig, setShiftConfig] = useState<any>(null);
 
   const fetchEvents = async () => {
@@ -354,10 +353,15 @@ export default function ShiftInputScreen() {
           </View>
         )}
 
+        {/* ⑤ 修正箇所: disabledを外し、いつでも月を変更できるようにした */}
         <View style={localStyles.monthNav}>
-          <TouchableOpacity onPress={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))} disabled={!isAdmin && !isWithinSubmissionPeriod()}><Ionicons name="chevron-back" size={28} color={(!isAdmin && !isWithinSubmissionPeriod()) ? "#CBD5E1" : "#B8860B"} /></TouchableOpacity>
+          <TouchableOpacity onPress={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}>
+            <Ionicons name="chevron-back" size={28} color="#B8860B" />
+          </TouchableOpacity>
           <Text style={localStyles.monthText}>{currentMonth.getFullYear()}年 {currentMonth.getMonth() + 1}月</Text>
-          <TouchableOpacity onPress={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))} disabled={!isAdmin && !isWithinSubmissionPeriod()}><Ionicons name="chevron-forward" size={28} color={(!isAdmin && !isWithinSubmissionPeriod()) ? "#CBD5E1" : "#B8860B"} /></TouchableOpacity>
+          <TouchableOpacity onPress={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}>
+            <Ionicons name="chevron-forward" size={28} color="#B8860B" />
+          </TouchableOpacity>
         </View>
 
         {!isAdmin && (
@@ -411,6 +415,7 @@ export default function ShiftInputScreen() {
               } else {
                 const hasShift = !!shifts[dateKey];
                 return (
+                  // ※編集自体は isWithinSubmissionPeriod() でブロックしています
                   <TouchableOpacity key={i} style={[localStyles.dayCell, hasShift && localStyles.dayCellActive, eventTitle && { backgroundColor: '#FFFBEB' }]} onPress={() => day && handleDayPress(dateKey, day)} disabled={!day || !isWithinSubmissionPeriod()} activeOpacity={0.6}>
                     <Text style={[localStyles.dayNum, hasShift && localStyles.dayNumberActive]}>{day || ''}</Text>
                     {eventTitle && <View style={localStyles.eventBadge}><Text style={localStyles.eventText} numberOfLines={1}>📌 {eventTitle}</Text></View>}
