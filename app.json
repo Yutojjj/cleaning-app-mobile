@@ -1,43 +1,50 @@
 {
   "expo": {
-    "name": "勤怠システム",
-    "slug": "kintai-system",
+    "name": "パイナップル",
+    "slug": "pineapple-app",
     "version": "1.0.0",
-    "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "scheme": "kintai-system",
-    "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
-    "ios": {
-      "supportsTablet": true
-    },
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      }
-    },
+    "scheme": "pineapple-app", 
+    "icon": "./assets/images/icon.png",
     "web": {
-      "favicon": "./assets/favicon.png",
-      "name": "勤怠システム",
-      "shortName": "勤怠",
-      "themeColor": "#B8860B",
+      "output": "static",
+      "favicon": "./assets/images/icon.png",
+      "name": "パイナップル",
+      "shortName": "パイナップル",
+      "description": "パイナップル",
+      "themeColor": "#FF69B4",
       "backgroundColor": "#ffffff",
-      "display": "standalone",
-      "bundler": "metro"
-    },
-    "plugins": [
-      "expo-router"
-    ],
-    "experiments": {
-      "typedRoutes": true
+      "config": {
+        "pwa": {
+          "manifest": {
+            "name": "パイナップル",
+            "short_name": "パイナップル",
+            "description": "パイナップル",
+            "display": "standalone",
+            "orientation": "portrait",
+            "start_url": "/",
+            "background_color": "#ffffff",
+            "theme_color": "#FF69B4",
+            "icons": [
+              {
+                "src": "/assets/images/icon.png",
+                "sizes": "192x192",
+                "type": "image/png"
+              },
+              {
+                "src": "/assets/images/icon.png",
+                "sizes": "512x512",
+                "type": "image/png"
+              },
+              {
+                "src": "/assets/images/icon.png",
+                "sizes": "512x512",
+                "type": "image/png",
+                "purpose": "maskable"
+              }
+            ]
+          }
+        }
+      }
     }
   }
 }
