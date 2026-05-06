@@ -1,16 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import { onAuthStateChanged } from 'firebase/auth';
-import { collection, doc, getDoc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, updateDoc } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { Alert, Dimensions, Modal, Platform, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Dimensions, Modal, Platform, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { auth, db } from '../../firebase';
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+const { height: screenHeight } = Dimensions.get('window');
 const DEFAULT_SITES = ['warp', 'thewarp', 'ラドンナ', '他'];
 
 interface Staff { id: string; name: string; role: string; shifts: Record<string, string>; }
 
-const formatDateKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const formatDateJapanese = (dateStr: string) => {
   if (!dateStr) return '';
   const d = new Date(dateStr);
@@ -34,82 +33,17 @@ const getSiteColor = (site: string, allSites: string[]): string => {
   return EXTRA_COLORS[extraIdx % EXTRA_COLORS.length] || '#6B7280';
 };
 
-const CustomTimePicker = ({ site, value, onChange, allSites }: { site: string, value: any, onChange: (v: string) => void, allSites: string[] }) => {
-  const safeValue = typeof value === 'string' && value.includes('-') ? value : '休み';
-  const isActive = safeValue !== '休み';
-  const [startH, setStartH] = useState(isActive ? safeValue.split('-')[0].split(':')[0] : '19');
-  const [startM, setStartM] = useState(isActive ? safeValue.split('-')[0].split(':')[1] : '00');
-  const [endH, setEndH] = useState(isActive ? safeValue.split('-')[1].split(':')[0] : '24');
-  const [endM, setEndM] = useState(isActive ? (safeValue.split('-')[1].split(':')[1] || '00') : '00');
-  const [pickerConfig, setPickerConfig] = useState<{ visible: boolean, type: 'startH'|'startM'|'endH'|'endM' } | null>(null);
+const isAssigned = (val: any): boolean => {
+  if (!val) return false;
+  if (typeof val === 'string') return val !== '〇' && val !== '休み';
+  return false;
+};
 
-  useEffect(() => {
-    if (isActive) {
-      const finalEndM = (endH === '24' || endH === 'LAST') ? '00' : endM;
-      onChange(`${startH}:${startM}-${endH}:${finalEndM}`);
-    }
-  }, [startH, startM, endH, endM]);
-
-  useEffect(() => {
-    if (typeof value === 'string' && value.includes('-')) {
-      const [s, e] = value.split('-');
-      if (s && e) {
-        setStartH(s.split(':')[0]); setStartM(s.split(':')[1] || '00');
-        setEndH(e.split(':')[0]); setEndM(e.split(':')[1] || '00');
-      }
-    }
-  }, [value]);
-
-  const renderPickerModal = () => {
-    if (!pickerConfig) return null;
-    const isHour = pickerConfig.type.endsWith('H');
-    const data = isHour ? Array.from({length: 25}, (_, i) => String(i).padStart(2, '0')) : Array.from({length: 12}, (_, i) => String(i * 5).padStart(2, '0'));
-    return (
-      <Modal visible={true} transparent animationType="fade">
-        <TouchableOpacity style={{flex:1, backgroundColor:'rgba(0,0,0,0.5)', justifyContent:'center', alignItems:'center'}} onPress={() => setPickerConfig(null)}>
-          <View style={{backgroundColor:'#FFF', width:'70%', height: 350, borderRadius:20, padding:10}}>
-            <Text style={{textAlign:'center', fontWeight:'bold', padding:15, borderBottomWidth:1, borderColor:'#EEE'}}>{isHour ? '時を選択' : '分を選択'}</Text>
-            <ScrollView>
-              {data.map(item => (
-                <TouchableOpacity key={item} style={{padding:15, alignItems:'center', borderBottomWidth:1, borderColor:'#F1F5F9'}} onPress={() => {
-                  if(pickerConfig.type === 'startH') setStartH(item);
-                  if(pickerConfig.type === 'startM') setStartM(item);
-                  if(pickerConfig.type === 'endH') setEndH(item);
-                  if(pickerConfig.type === 'endM') setEndM(item);
-                  setPickerConfig(null);
-                }}><Text style={{fontSize:22, fontWeight:'bold'}}>{item}</Text></TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        </TouchableOpacity>
-      </Modal>
-    );
-  };
-
-  const color = getSiteColor(site, allSites);
-
-  return (
-    <View style={{ marginBottom: 15 }}>
-      <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: isActive ? color : '#F8FAFC', padding: 15, borderRadius: 12, borderWidth: 1, borderColor: isActive ? color : '#E2E8F0' }} onPress={() => isActive ? onChange('休み') : onChange(`${startH}:${startM}-${endH}:${endM}`)}>
-        <Ionicons name={isActive ? "checkmark-circle" : "ellipse-outline"} size={24} color={isActive ? "#FFF" : "#CBD5E1"} />
-        <Text style={{ fontSize: 18, fontWeight: 'bold', color: isActive ? '#FFF' : '#1e293b', marginLeft: 10 }}>{site.toUpperCase()}</Text>
-      </TouchableOpacity>
-      {isActive && (
-        <View style={{ backgroundColor: '#FFF', padding: 15, borderBottomLeftRadius: 12, borderBottomRightRadius: 12, borderWidth: 1, borderTopWidth: 0, borderColor: '#E2E8F0', alignItems: 'center' }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <TouchableOpacity style={localStyles.dropdownBtn} onPress={() => setPickerConfig({visible:true, type:'startH'})}><Text style={localStyles.dropdownText}>{startH}</Text><Ionicons name="caret-down" size={14}/></TouchableOpacity>
-            <Text style={{fontWeight:'bold', marginHorizontal:5}}>:</Text>
-            <TouchableOpacity style={localStyles.dropdownBtn} onPress={() => setPickerConfig({visible:true, type:'startM'})}><Text style={localStyles.dropdownText}>{startM}</Text><Ionicons name="caret-down" size={14}/></TouchableOpacity>
-            <Text style={{fontSize: 20, marginHorizontal: 15, color:'#CBD5E1'}}>〜</Text>
-            <TouchableOpacity style={localStyles.dropdownBtn} onPress={() => setPickerConfig({visible:true, type:'endH'})}><Text style={localStyles.dropdownText}>{endH}</Text><Ionicons name="caret-down" size={14}/></TouchableOpacity>
-            <Text style={{fontWeight:'bold', marginHorizontal:5}}>:</Text>
-            <TouchableOpacity style={localStyles.dropdownBtn} onPress={() => setPickerConfig({visible:true, type:'endM'})}><Text style={localStyles.dropdownText}>{endH === '24' || endH === 'LAST' ? '00' : endM}</Text><Ionicons name="caret-down" size={14}/></TouchableOpacity>
-          </View>
-        </View>
-      )}
-      {renderPickerModal()}
-    </View>
-  );
+const hasHope = (raw: any): boolean => {
+  if (!raw) return false;
+  if (typeof raw === 'string') return raw === '〇';
+  if (typeof raw === 'object') return Object.values(raw).some(v => v === '〇');
+  return false;
 };
 
 export default function ShiftInputScreen() {
@@ -119,15 +53,17 @@ export default function ShiftInputScreen() {
   const [shifts, setShifts] = useState<Record<string, any>>({});
   const [mockStaff, setMockStaff] = useState<Record<string, Staff[]>>({});
   const [allStaffDB, setAllStaffDB] = useState<any[]>([]);
-  const [editShiftsForDate, setEditShiftsForDate] = useState<Record<string, string>>({});
   const [shopEvents, setShopEvents] = useState<Record<string, string>>({});
-  const [shiftTemplates, setShiftTemplates] = useState<string[]>(['19:00-24:00', '18:00-23:00']);
-  const [newTemplateInput, setNewTemplateInput] = useState('');
   const [shiftConfig, setShiftConfig] = useState<any>(null);
   const [sitesList, setSitesList] = useState<string[]>(DEFAULT_SITES);
   const [detailView, setDetailView] = useState(false);
   const [twoWeekView, setTwoWeekView] = useState(false);
   const [twoWeekOffset, setTwoWeekOffset] = useState(0);
+
+  const [dayDetailModalVisible, setDayDetailModalVisible] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [modalView, setModalView] = useState<'list' | 'addStaff'>('list');
+  const [targetSiteForAdd, setTargetSiteForAdd] = useState<string | null>(null);
 
   const fetchEvents = async () => {
     try {
@@ -135,7 +71,7 @@ export default function ShiftInputScreen() {
       const evs: Record<string, string> = {};
       snap.forEach(d => { evs[d.id] = d.data().title; });
       setShopEvents(evs);
-    } catch (error) {}
+    } catch {}
   };
 
   const fetchUsersFromFirestore = async (sites: string[]) => {
@@ -166,7 +102,7 @@ export default function ShiftInputScreen() {
       });
       setAllStaffDB(fetchedUsers);
       setMockStaff(initial);
-    } catch (error) {}
+    } catch {}
   };
 
   useEffect(() => {
@@ -178,10 +114,7 @@ export default function ShiftInputScreen() {
           if (userDoc.exists()) {
             const data = userDoc.data();
             setIsAdmin(data.role === 'admin');
-            if (data.role !== 'admin') {
-              if (data.shifts) setShifts(data.shifts);
-            }
-            if (data.shiftTemplates) setShiftTemplates(data.shiftTemplates);
+            if (data.role !== 'admin' && data.shifts) setShifts(data.shifts);
 
             const configSnap = await getDoc(doc(db, 'settings', 'shiftConfig'));
             if (configSnap.exists()) {
@@ -197,7 +130,7 @@ export default function ShiftInputScreen() {
             setSitesList(loadedSites);
             fetchUsersFromFirestore(loadedSites);
           }
-        } catch (error) {}
+        } catch {}
         fetchEvents();
       } else {
         setIsAdmin(false); setCurrentUid(null);
@@ -216,32 +149,7 @@ export default function ShiftInputScreen() {
     return now >= start && now <= end;
   };
 
-  const saveNewTemplate = async () => {
-    if (!newTemplateInput.includes('-')) {
-      Alert.alert('エラー', '例：19:00-24:00 のように入力してください');
-      return;
-    }
-    const nextTemplates = [...shiftTemplates, newTemplateInput];
-    setShiftTemplates(nextTemplates);
-    setNewTemplateInput('');
-    if (currentUid) await updateDoc(doc(db, 'users', currentUid), { shiftTemplates: nextTemplates });
-  };
-
-  const applyTemplate = (templateTime: string) => {
-    const nextEdit = { ...editShiftsForDate };
-    sitesList.forEach(s => {
-      if (nextEdit[s] && nextEdit[s] !== '休み') nextEdit[s] = templateTime;
-    });
-    setEditShiftsForDate(nextEdit);
-  };
-
-  const [dayDetailModalVisible, setDayDetailModalVisible] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [modalView, setModalView] = useState<'list' | 'addStaff' | 'editTime'>('list');
-  const [targetSiteForAdd, setTargetSiteForAdd] = useState<string | null>(null);
-  const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
-
-  const handleDayPress = async (dateKey: string, day: number) => {
+  const handleDayPress = async (dateKey: string) => {
     if (!isWithinSubmissionPeriod()) {
       Alert.alert('募集期間外', '現在はシフト希望の募集期間ではありません。');
       return;
@@ -260,16 +168,19 @@ export default function ShiftInputScreen() {
 
   const addStaffToDate = async (site: string, staffDef: { id: string; name: string; role: string }) => {
     if (!selectedDate) return;
+
     const newMock = { ...mockStaff };
     if (!newMock[site]) newMock[site] = [];
     const existingIndex = newMock[site].findIndex(s => s.id === staffDef.id);
     if (existingIndex >= 0) {
-      const updatedArray = [...newMock[site]];
-      updatedArray[existingIndex] = { ...updatedArray[existingIndex], shifts: { ...updatedArray[existingIndex].shifts, [selectedDate]: '19:00-24:00' } };
-      newMock[site] = updatedArray;
+      const arr = [...newMock[site]];
+      arr[existingIndex] = { ...arr[existingIndex], shifts: { ...arr[existingIndex].shifts, [selectedDate]: '出勤' } };
+      newMock[site] = arr;
     } else {
-      newMock[site] = [...newMock[site], { ...staffDef, shifts: { [selectedDate]: '19:00-24:00' } }];
+      newMock[site] = [...newMock[site], { ...staffDef, shifts: { [selectedDate]: '出勤' } }];
     }
+    setMockStaff(newMock);
+
     try {
       const userRef = doc(db, 'users', staffDef.id);
       const userDoc = await getDoc(userRef);
@@ -284,42 +195,10 @@ export default function ShiftInputScreen() {
         } else if (dayShift && typeof dayShift === 'object') {
           newDayShift = { ...dayShift };
         }
-        newDayShift[site] = '19:00-24:00';
+        newDayShift[site] = '出勤';
         await updateDoc(userRef, { shifts: { ...currentShifts, [selectedDate]: newDayShift } });
       }
-    } catch(e) {}
-    setMockStaff(newMock);
-    setModalView('list');
-  };
-
-  const openEditStaffTime = async (staff: Staff) => {
-    setEditingStaff(staff);
-    const userDoc = await getDoc(doc(db, 'users', staff.id));
-    let initialEdit: any = {};
-    if (userDoc.exists()) {
-      const uShifts = userDoc.data().shifts || {};
-      const dayShift = uShifts[selectedDate!] || {};
-      initialEdit = typeof dayShift === 'string' ? { warp: dayShift } : dayShift;
-    }
-    const fullEdit: Record<string, string> = {};
-    sitesList.forEach(s => { fullEdit[s] = initialEdit[s] || '休み'; });
-    setEditShiftsForDate(fullEdit);
-    setModalView('editTime');
-  };
-
-  const saveStaffTime = async () => {
-    if (!selectedDate || !editingStaff) return;
-    try {
-      const userRef = doc(db, 'users', editingStaff.id);
-      const userDoc = await getDoc(userRef);
-      if (userDoc.exists()) {
-        const currentShifts = userDoc.data().shifts || {};
-        await updateDoc(userRef, { shifts: { ...currentShifts, [selectedDate]: editShiftsForDate } });
-      }
-      fetchUsersFromFirestore(sitesList);
-    } catch(e) {}
-    setModalView('list');
-    setEditingStaff(null);
+    } catch {}
   };
 
   const deleteStaffFromDate = async (staffId: string, site: string) => {
@@ -339,8 +218,74 @@ export default function ShiftInputScreen() {
         }
         await updateDoc(userRef, { shifts: currentShifts });
       }
-    } catch(e) {}
+    } catch {}
     fetchUsersFromFirestore(sitesList);
+  };
+
+  const autoFillShifts = async () => {
+    if (!selectedDate) return;
+    try {
+      const configSnap = await getDoc(doc(db, 'settings', 'autoShiftConfig'));
+      const autoConfig = configSnap.exists() ? configSnap.data() : { leaders: [], storeRequirements: {} };
+
+      const leaderPriorityMap: Record<string, number> = {};
+      (autoConfig.leaders || []).forEach((l: any, idx: number) => {
+        leaderPriorityMap[l.userId] = idx;
+      });
+
+      const availableStaff = allStaffDB.filter(s => hasHope(s.shifts?.[selectedDate]));
+
+      const updates: Record<string, Record<string, string>> = {};
+      const newMock: Record<string, Staff[]> = JSON.parse(JSON.stringify(mockStaff));
+
+      for (const site of sitesList) {
+        if (site === '他') continue;
+        const required: number = autoConfig.storeRequirements?.[site] || 0;
+        if (required === 0) continue;
+
+        const eligible = availableStaff.filter((s: any) => {
+          const userSites = Array.isArray(s.sites) ? s.sites : (s.site ? [s.site] : []);
+          return userSites.includes(site);
+        });
+
+        eligible.sort((a: any, b: any) => {
+          const ap = leaderPriorityMap[a.id] ?? 9999;
+          const bp = leaderPriorityMap[b.id] ?? 9999;
+          return ap - bp;
+        });
+
+        const toAssign = eligible.slice(0, required);
+        for (const staff of toAssign) {
+          if (!updates[staff.id]) updates[staff.id] = {};
+          updates[staff.id][site] = '出勤';
+
+          if (!newMock[site]) newMock[site] = [];
+          const idx = newMock[site].findIndex((s: Staff) => s.id === staff.id);
+          if (idx >= 0) {
+            newMock[site][idx] = { ...newMock[site][idx], shifts: { ...newMock[site][idx].shifts, [selectedDate]: '出勤' } };
+          } else {
+            newMock[site].push({ id: staff.id, name: staff.name, role: staff.role, shifts: { [selectedDate]: '出勤' } });
+          }
+        }
+      }
+
+      for (const [userId, siteShifts] of Object.entries(updates)) {
+        const userRef = doc(db, 'users', userId);
+        const userDoc = await getDoc(userRef);
+        if (userDoc.exists()) {
+          const currentShifts = userDoc.data().shifts || {};
+          const dayShift = currentShifts[selectedDate] || {};
+          const newDayShift = typeof dayShift === 'string' ? {} : { ...dayShift };
+          Object.assign(newDayShift, siteShifts);
+          await updateDoc(userRef, { shifts: { ...currentShifts, [selectedDate]: newDayShift } });
+        }
+      }
+
+      setMockStaff(newMock);
+      Alert.alert('完了', '自動入力が完了しました');
+    } catch {
+      Alert.alert('エラー', '自動入力に失敗しました');
+    }
   };
 
   const renderDays = () => {
@@ -350,7 +295,7 @@ export default function ShiftInputScreen() {
 
     if (!twoWeekView) {
       const firstDay = new Date(year, month, 1).getDay();
-      const days = [];
+      const days: (number | null)[] = [];
       for (let i = 0; i < firstDay; i++) days.push(null);
       for (let i = 1; i <= daysInMonth; i++) days.push(i);
       return days;
@@ -358,7 +303,7 @@ export default function ShiftInputScreen() {
       const startDay = twoWeekOffset * 14 + 1;
       const endDay = Math.min(twoWeekOffset * 14 + 14, daysInMonth);
       const startDow = new Date(year, month, startDay).getDay();
-      const days = [];
+      const days: (number | null)[] = [];
       for (let i = 0; i < startDow; i++) days.push(null);
       for (let i = startDay; i <= endDay; i++) days.push(i);
       return days;
@@ -375,7 +320,6 @@ export default function ShiftInputScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: 150 }}>
-        {/* スタッフ: 期間外表示 + 締切日バナー */}
         {!isAdmin && (
           <View>
             {!isWithinSubmissionPeriod() ? (
@@ -398,9 +342,7 @@ export default function ShiftInputScreen() {
                   <Text style={{ color: '#92400E', fontWeight: 'bold', fontSize: 13 }}>
                     {shiftConfig.targetMonth ? `${shiftConfig.targetMonth.replace('-', '年')}月分` : ''} シフト希望 受付中
                   </Text>
-                  <Text style={{ color: '#B45309', fontSize: 12, marginTop: 3 }}>
-                    締切: {shiftConfig.endDate} まで
-                  </Text>
+                  <Text style={{ color: '#B45309', fontSize: 12, marginTop: 3 }}>締切: {shiftConfig.endDate} まで</Text>
                 </View>
               )
             )}
@@ -445,7 +387,9 @@ export default function ShiftInputScreen() {
 
           <View style={localStyles.daysGrid}>
             {renderDays().map((day, i) => {
-              const dateKey = day ? `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}` : '';
+              const dateKey = day
+                ? `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+                : '';
               const eventTitle = dateKey ? shopEvents[dateKey] : null;
 
               if (isAdmin) {
@@ -453,8 +397,8 @@ export default function ShiftInputScreen() {
                 const hopeIds = new Set<string>();
 
                 for (const site of sitesList) {
-                  const assignedCount = mockStaff[site]?.filter(s => s.shifts[dateKey] && s.shifts[dateKey] !== '〇' && s.shifts[dateKey] !== '休み').length || 0;
-                  if (assignedCount > 0) assignedCounts[site] = assignedCount;
+                  const count = mockStaff[site]?.filter(s => isAssigned(s.shifts[dateKey])).length || 0;
+                  if (count > 0) assignedCounts[site] = count;
                   mockStaff[site]?.forEach(staff => {
                     if (staff.shifts[dateKey] && staff.shifts[dateKey] !== '休み') hopeIds.add(staff.id);
                   });
@@ -462,7 +406,7 @@ export default function ShiftInputScreen() {
                 const totalHopeStaff = day ? hopeIds.size : 0;
 
                 return (
-                  <TouchableOpacity key={i} style={[localStyles.dayCell, { height: cellHeight }]} onPress={() => day && handleDayPress(dateKey, day)} disabled={!day}>
+                  <TouchableOpacity key={i} style={[localStyles.dayCell, { height: cellHeight }]} onPress={() => day && handleDayPress(dateKey)} disabled={!day}>
                     <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'flex-start', width: '100%', paddingLeft: 3 }}>
                       <Text style={localStyles.dayNum}>{day || ''}</Text>
                       {day && totalHopeStaff > 0 && <Text style={localStyles.miniTotalCount}>{totalHopeStaff}名</Text>}
@@ -472,7 +416,7 @@ export default function ShiftInputScreen() {
                     {detailView ? (
                       <View style={{ width: '100%', marginTop: 1 }}>
                         {sitesList.map(site => {
-                          const siteStaff = mockStaff[site]?.filter(s => s.shifts[dateKey] && s.shifts[dateKey] !== '〇' && s.shifts[dateKey] !== '休み') || [];
+                          const siteStaff = mockStaff[site]?.filter(s => isAssigned(s.shifts[dateKey])) || [];
                           if (siteStaff.length === 0) return null;
                           const color = getSiteColor(site, sitesList);
                           return (
@@ -500,7 +444,13 @@ export default function ShiftInputScreen() {
               } else {
                 const hasShift = !!shifts[dateKey];
                 return (
-                  <TouchableOpacity key={i} style={[localStyles.dayCell, { height: cellHeight }, hasShift && localStyles.dayCellActive, eventTitle && { backgroundColor: '#FFFBEB' }]} onPress={() => day && handleDayPress(dateKey, day)} disabled={!day || !isWithinSubmissionPeriod()} activeOpacity={0.6}>
+                  <TouchableOpacity
+                    key={i}
+                    style={[localStyles.dayCell, { height: cellHeight }, hasShift && localStyles.dayCellActive, eventTitle && { backgroundColor: '#FFFBEB' }]}
+                    onPress={() => day && handleDayPress(dateKey)}
+                    disabled={!day || !isWithinSubmissionPeriod()}
+                    activeOpacity={0.6}
+                  >
                     <Text style={[localStyles.dayNum, hasShift && localStyles.dayNumberActive]}>{day || ''}</Text>
                     {eventTitle && <View style={localStyles.eventBadge}><Text style={localStyles.eventText} numberOfLines={1}>📌 {eventTitle}</Text></View>}
                     {hasShift && <Text style={{ color: '#10B981', fontSize: 24, fontWeight: 'bold', marginTop: 5 }}>〇</Text>}
@@ -512,7 +462,6 @@ export default function ShiftInputScreen() {
         </View>
       </ScrollView>
 
-      {/* FAB: 管理者のみ表示 - 詳細/概要表示切替 */}
       {isAdmin && (
         <TouchableOpacity
           style={localStyles.fab}
@@ -527,152 +476,136 @@ export default function ShiftInputScreen() {
         </TouchableOpacity>
       )}
 
-      <Modal visible={dayDetailModalVisible} animationType="slide" onRequestClose={() => {
-        if (modalView !== 'list') setModalView('list'); else setDayDetailModalVisible(false);
-      }}>
+      <Modal
+        visible={dayDetailModalVisible}
+        animationType="slide"
+        onRequestClose={() => { if (modalView !== 'list') setModalView('list'); else setDayDetailModalVisible(false); }}
+      >
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.header}>
             <TouchableOpacity onPress={() => { if (modalView !== 'list') setModalView('list'); else setDayDetailModalVisible(false); }}>
-              <Ionicons name={modalView === 'list' ? "chevron-down" : "arrow-back"} size={32} color="#B8860B" />
+              <Ionicons name={modalView === 'list' ? 'chevron-down' : 'arrow-back'} size={32} color="#B8860B" />
             </TouchableOpacity>
             <Text style={[styles.headerTitle, { color: '#B8860B' }]}>
-              {modalView === 'list' ? `${formatDateJapanese(selectedDate || '')} シフト詳細`
-                : modalView === 'addStaff' ? 'スタッフ追加'
-                : 'シフト時間編集'}
+              {modalView === 'list' ? `${formatDateJapanese(selectedDate || '')} シフト詳細` : 'スタッフ追加'}
             </Text>
             <View style={{ width: 32 }} />
           </View>
 
           {modalView === 'list' && (
-            <ScrollView style={{ padding: 20 }}>
-              {sitesList.map(site => {
-                const color = getSiteColor(site, sitesList);
-                const workingStaff = mockStaff[site]?.filter(s => s.shifts[selectedDate!] && s.shifts[selectedDate!] !== '〇' && s.shifts[selectedDate!] !== '休み') || [];
-                return (
-                  <View key={site} style={{ marginBottom: 35 }}>
-                    <Text style={[localStyles.detailSiteTitle, { color }]}>{site.toUpperCase()}</Text>
-                    {workingStaff.length === 0 && <Text style={{ color: '#94a3b8', fontSize: 12, marginBottom: 10 }}>時間が確定しているメンバーはいません</Text>}
-                    {workingStaff.map(staff => (
-                      <TouchableOpacity key={staff.id} style={localStyles.detailStaffRow} onPress={() => openEditStaffTime(staff)}>
-                        <View>
+            <View style={{ flex: 1 }}>
+              <ScrollView style={{ padding: 20 }}>
+                {sitesList.map(site => {
+                  const color = getSiteColor(site, sitesList);
+                  const workingStaff = mockStaff[site]?.filter(s => isAssigned(s.shifts[selectedDate!])) || [];
+                  return (
+                    <View key={site} style={{ marginBottom: 35 }}>
+                      <Text style={[localStyles.detailSiteTitle, { color }]}>{site.toUpperCase()}</Text>
+                      {workingStaff.length === 0 && (
+                        <Text style={{ color: '#94a3b8', fontSize: 12, marginBottom: 10 }}>配置されているメンバーはいません</Text>
+                      )}
+                      {workingStaff.map(staff => (
+                        <View key={staff.id} style={localStyles.detailStaffRow}>
                           <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1e293b' }}>{staff.name}</Text>
-                          <Text style={{ fontSize: 14, color, fontWeight: 'bold', marginTop: 4 }}>{staff.shifts[selectedDate!]}</Text>
+                          <TouchableOpacity style={localStyles.detailDeleteBtn} onPress={() => deleteStaffFromDate(staff.id, site)}>
+                            <Ionicons name="trash-outline" size={20} color="#ef4444" />
+                          </TouchableOpacity>
                         </View>
-                        <TouchableOpacity style={localStyles.detailDeleteBtn} onPress={() => deleteStaffFromDate(staff.id, site)}><Ionicons name="trash-outline" size={20} color="#ef4444" /></TouchableOpacity>
+                      ))}
+                      <TouchableOpacity style={localStyles.addStaffBtn} onPress={() => { setTargetSiteForAdd(site); setModalView('addStaff'); }}>
+                        <Ionicons name="add" size={20} color="#10B981" />
+                        <Text style={{ color: '#10B981', fontWeight: 'bold', marginLeft: 5 }}>メンバーを追加・編成する</Text>
                       </TouchableOpacity>
-                    ))}
-                    <TouchableOpacity style={localStyles.addStaffBtn} onPress={() => { setTargetSiteForAdd(site); setModalView('addStaff'); }}>
-                      <Ionicons name="add" size={20} color="#10B981" /><Text style={{ color: '#10B981', fontWeight: 'bold', marginLeft: 5 }}>メンバーを追加・編成する</Text>
-                    </TouchableOpacity>
-                  </View>
-                );
-              })}
-            </ScrollView>
+                    </View>
+                  );
+                })}
+                <View style={{ height: 100 }} />
+              </ScrollView>
+
+              <TouchableOpacity style={localStyles.autoFillBtn} onPress={autoFillShifts}>
+                <Ionicons name="flash" size={20} color="#FFF" />
+                <Text style={{ color: '#FFF', fontWeight: 'bold', fontSize: 14, marginLeft: 6 }}>自動入力</Text>
+              </TouchableOpacity>
+            </View>
           )}
 
           {modalView === 'addStaff' && (() => {
             const targetColor = getSiteColor(targetSiteForAdd || '', sitesList);
-            const unassignedStaff = allStaffDB.filter(s => {
-              const shiftVal = s.shifts ? s.shifts[selectedDate!] : null;
-              if (!shiftVal) return true;
-              if (typeof shiftVal === 'string') return shiftVal === '〇' || shiftVal === '休み';
-              return !shiftVal[targetSiteForAdd!] || shiftVal[targetSiteForAdd!] === '〇' || shiftVal[targetSiteForAdd!] === '休み';
-            });
-
-            const circleStaff = unassignedStaff.filter(s => {
-              const shiftVal = s.shifts ? s.shifts[selectedDate!] : null;
-              if (typeof shiftVal === 'string') return shiftVal === '〇';
-              if (typeof shiftVal === 'object' && shiftVal !== null) return Object.values(shiftVal).includes('〇');
-              return false;
-            });
-
-            const noCircleStaff = unassignedStaff.filter(s => !circleStaff.includes(s));
 
             const assignedStaff = mockStaff[targetSiteForAdd!]?.filter(s =>
-              s.shifts[selectedDate!] && s.shifts[selectedDate!] !== '〇' && s.shifts[selectedDate!] !== '休み'
+              isAssigned(s.shifts[selectedDate!])
             ) || [];
+            const assignedIds = new Set(assignedStaff.map(s => s.id));
+
+            const nonAssignedStaff = allStaffDB.filter((s: any) => !assignedIds.has(s.id));
+
+            const circleStaff = nonAssignedStaff.filter((s: any) => hasHope(s.shifts?.[selectedDate!]));
+            const noCircleStaff = nonAssignedStaff.filter((s: any) => !circleStaff.some((c: any) => c.id === s.id));
 
             return (
               <View style={{ flex: 1, padding: 20 }}>
-                <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 15, color: targetColor }}>{targetSiteForAdd?.toUpperCase()} に編成する</Text>
+                <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 15, color: targetColor }}>
+                  {targetSiteForAdd?.toUpperCase()} に編成する
+                </Text>
                 <ScrollView showsVerticalScrollIndicator={false}>
+
+                  {assignedStaff.length > 0 && (
+                    <View style={{ marginBottom: 20 }}>
+                      <Text style={[localStyles.sectionLabelGold, { color: targetColor, borderColor: targetColor }]}>
+                        ■ 現在の配置 ({targetSiteForAdd?.toUpperCase()})
+                      </Text>
+                      {assignedStaff.map(staff => (
+                        <View key={staff.id} style={[localStyles.addStaffItem, { borderColor: targetColor, borderWidth: 1 }]}>
+                          <View>
+                            <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1e293b' }}>{staff.name}</Text>
+                            <Text style={{ fontSize: 12, color: targetColor, fontWeight: 'bold', marginTop: 2 }}>配置済み</Text>
+                          </View>
+                          <TouchableOpacity
+                            style={localStyles.detailDeleteBtn}
+                            onPress={() => deleteStaffFromDate(staff.id, targetSiteForAdd!)}
+                          >
+                            <Ionicons name="trash-outline" size={20} color="#ef4444" />
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
                   <Text style={localStyles.sectionLabelGold}>■ 希望を出しているメンバー</Text>
-                  {circleStaff.length === 0 && <Text style={{ color:'#94a3b8', marginBottom:15 }}>該当なし</Text>}
-                  {circleStaff.map(staff => (
+                  {circleStaff.length === 0 && <Text style={{ color: '#94a3b8', marginBottom: 15 }}>該当なし</Text>}
+                  {circleStaff.map((staff: any) => (
                     <TouchableOpacity key={staff.id} style={localStyles.addStaffItem} onPress={() => addStaffToDate(targetSiteForAdd!, staff)}>
-                      <View><Text style={{ fontSize: 16, fontWeight: 'bold' }}>{staff.name}</Text><Text style={{ fontSize: 10, color: '#64748b' }}>{staff.role}</Text></View>
-                      <View style={{ flexDirection: 'row', alignItems: 'center' }}><Text style={{ color: '#10B981', fontWeight: 'bold', marginRight: 10, fontSize: 12 }}>〇 希望あり</Text><Ionicons name="add-circle" size={24} color="#10B981" /></View>
+                      <View>
+                        <Text style={{ fontSize: 16, fontWeight: 'bold' }}>{staff.name}</Text>
+                        <Text style={{ fontSize: 10, color: '#64748b' }}>{staff.role}</Text>
+                      </View>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Text style={{ color: '#10B981', fontWeight: 'bold', marginRight: 10, fontSize: 12 }}>〇 希望あり</Text>
+                        <Ionicons name="add-circle" size={24} color="#10B981" />
+                      </View>
                     </TouchableOpacity>
                   ))}
 
                   <Text style={[localStyles.sectionLabelGold, { color: '#64748b', marginTop: 20 }]}>■ 希望を出していないメンバー</Text>
-                  {noCircleStaff.length === 0 && <Text style={{ color:'#94a3b8', marginBottom:15 }}>該当なし</Text>}
-                  {noCircleStaff.map(staff => (
-                    <TouchableOpacity key={staff.id} style={[localStyles.addStaffItem, { opacity: 0.6, borderColor: '#E2E8F0' }]} onPress={() => {
-                      Alert.alert("確認", "シフト希望を出していないメンバーですが、追加しますか？", [
-                        { text: "キャンセル", style: "cancel" },
-                        { text: "追加する", onPress: () => addStaffToDate(targetSiteForAdd!, staff) }
-                      ]);
-                    }}>
-                      <View><Text style={{ fontSize: 16, fontWeight: 'bold', color: '#64748b' }}>{staff.name}</Text><Text style={{ fontSize: 10, color: '#94a3b8' }}>{staff.role}</Text></View>
-                      <View style={{ flexDirection: 'row', alignItems: 'center' }}><Text style={{ color: '#94a3b8', marginRight: 10, fontSize: 12 }}>希望なし</Text><Ionicons name="add-circle-outline" size={24} color="#94a3b8" /></View>
+                  {noCircleStaff.length === 0 && <Text style={{ color: '#94a3b8', marginBottom: 15 }}>該当なし</Text>}
+                  {noCircleStaff.map((staff: any) => (
+                    <TouchableOpacity key={staff.id} style={[localStyles.addStaffItem, { opacity: 0.7 }]} onPress={() => addStaffToDate(targetSiteForAdd!, staff)}>
+                      <View>
+                        <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#64748b' }}>{staff.name}</Text>
+                        <Text style={{ fontSize: 10, color: '#94a3b8' }}>{staff.role}</Text>
+                      </View>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Text style={{ color: '#94a3b8', marginRight: 10, fontSize: 12 }}>希望なし</Text>
+                        <Ionicons name="add-circle-outline" size={24} color="#94a3b8" />
+                      </View>
                     </TouchableOpacity>
                   ))}
 
-                  {assignedStaff.length > 0 && (
-                    <>
-                      <View style={{ marginTop: 25, marginBottom: 10, borderTopWidth: 1, borderColor: '#E2E8F0', paddingTop: 15 }}>
-                        <Text style={[localStyles.sectionLabelGold, { color: targetColor, borderColor: targetColor }]}>■ 現在の配置 ({targetSiteForAdd?.toUpperCase()})</Text>
-                      </View>
-                      {assignedStaff.map(staff => (
-                        <TouchableOpacity key={staff.id} style={[localStyles.addStaffItem, { borderColor: targetColor }]} onPress={() => openEditStaffTime(staff)}>
-                          <View>
-                            <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1e293b' }}>{staff.name}</Text>
-                            <Text style={{ fontSize: 12, color: targetColor, fontWeight: 'bold', marginTop: 2 }}>{staff.shifts[selectedDate!]}</Text>
-                          </View>
-                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <Text style={{ color: targetColor, fontWeight: 'bold', marginRight: 8, fontSize: 12 }}>配置済み</Text>
-                            <Ionicons name="create-outline" size={22} color={targetColor} />
-                          </View>
-                        </TouchableOpacity>
-                      ))}
-                    </>
-                  )}
-                  <View style={{ height: 40 }}/>
+                  <View style={{ height: 40 }} />
                 </ScrollView>
               </View>
             );
           })()}
-
-          {modalView === 'editTime' && (
-            <View style={{ flex: 1, padding: 20 }}>
-              <Text style={{ fontSize: 18, fontWeight: '900', color: '#1e293b', marginBottom: 20, textAlign: 'center' }}>{editingStaff?.name} のシフトを編集</Text>
-              <ScrollView showsVerticalScrollIndicator={false}>
-                <View style={{ backgroundColor: '#F8FAFC', padding: 15, borderRadius: 12, marginBottom: 20, borderWidth: 1, borderColor: '#E2E8F0' }}>
-                  <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#64748b', marginBottom: 10 }}>よく使う時間の選択 (テンプレート)</Text>
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 15 }}>
-                    {shiftTemplates.map((temp, idx) => (
-                      <TouchableOpacity key={idx} style={{ paddingHorizontal: 12, paddingVertical: 8, backgroundColor: '#FFF', borderRadius: 8, borderWidth: 1, borderColor: '#B8860B' }} onPress={() => applyTemplate(temp)}>
-                        <Text style={{ color: '#B8860B', fontWeight: 'bold' }}>{temp}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                  <View style={{ flexDirection: 'row' }}>
-                    <TextInput style={{ flex: 1, backgroundColor: '#FFF', padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#CBD5E1', marginRight: 10 }} placeholder="例: 19:00-24:00" value={newTemplateInput} onChangeText={setNewTemplateInput} />
-                    <TouchableOpacity style={{ backgroundColor: '#1e293b', justifyContent: 'center', paddingHorizontal: 15, borderRadius: 8 }} onPress={saveNewTemplate}>
-                      <Text style={{ color: '#FFF', fontWeight: 'bold' }}>保存</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-
-                {sitesList.map(site => (
-                  <CustomTimePicker key={site} site={site} value={editShiftsForDate[site]} onChange={(v) => setEditShiftsForDate(prev => ({ ...prev, [site]: v }))} allSites={sitesList} />
-                ))}
-                <TouchableOpacity style={localStyles.goldBtn} onPress={saveStaffTime}><Text style={{ color: '#FFF', fontWeight: 'bold', fontSize: 16 }}>時間を確定する</Text></TouchableOpacity>
-                <View style={{ height: 50 }} />
-              </ScrollView>
-            </View>
-          )}
         </SafeAreaView>
       </Modal>
     </SafeAreaView>
@@ -706,8 +639,6 @@ const localStyles = StyleSheet.create({
   addStaffBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 12, backgroundColor: '#F0FDF4', borderRadius: 12, borderWidth: 1, borderColor: '#10B981', borderStyle: 'dashed' },
   sectionLabelGold: { fontSize: 14, fontWeight: 'bold', color: '#B8860B', marginBottom: 10, borderBottomWidth: 1, borderColor: '#E2E8F0', paddingBottom: 5 },
   addStaffItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 15, borderBottomWidth: 1, borderColor: '#F1F5F9', backgroundColor: '#FFF', borderRadius: 8, marginBottom: 5 },
-  dropdownBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, backgroundColor: '#F8FAFC', borderRadius: 8, borderWidth: 1, borderColor: '#CBD5E1' },
-  dropdownText: { fontSize: 18, fontWeight: 'bold', color: '#1e293b', marginRight: 5 },
-  goldBtn: { width: '100%', backgroundColor: '#B8860B', padding: 18, borderRadius: 15, alignItems: 'center', marginTop: 10 },
   fab: { position: 'absolute', bottom: 90, right: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: '#B8860B', justifyContent: 'center', alignItems: 'center', elevation: 6, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } },
+  autoFillBtn: { position: 'absolute', bottom: 30, right: 20, flexDirection: 'row', alignItems: 'center', backgroundColor: '#10B981', paddingVertical: 14, paddingHorizontal: 20, borderRadius: 28, elevation: 6, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } },
 });

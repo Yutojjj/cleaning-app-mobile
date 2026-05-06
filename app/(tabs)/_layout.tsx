@@ -122,6 +122,7 @@ export default function TabLayout() {
         />
         
         <Tabs.Screen name="account" options={{ href: null }} />
+        <Tabs.Screen name="shift-auto-settings" options={{ href: null }} />
         <Tabs.Screen name="approval" options={{ href: null }} />
         <Tabs.Screen name="salary-calc" options={{ href: null }} />
         <Tabs.Screen name="shift-settings" options={{ href: null }} />

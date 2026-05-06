@@ -140,6 +140,14 @@ export default function AdminMenuScreen() {
           </View>
         </TouchableOpacity>
 
+        <TouchableOpacity style={styles.menuBtnCard} onPress={() => router.push('/shift-auto-settings')}>
+          <Ionicons name="flash" size={40} color="#B8860B" />
+          <View style={styles.textContainer}>
+            <Text style={styles.menuBtnTitle}>シフト自動入力設定</Text>
+            <Text style={styles.menuBtnSub}>リーダー優先順位・店舗別確保人数の設定</Text>
+          </View>
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.menuBtnCard} onPress={exportTimecardsCSV}>
           <Ionicons name="download-outline" size={40} color="#B8860B" />
           <View style={styles.textContainer}>
