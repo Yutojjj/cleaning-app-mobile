@@ -17,7 +17,7 @@ messaging.onBackgroundMessage((payload) => {
   const { title, body } = payload.notification || {};
   self.registration.showNotification(title || 'パイナップル', {
     body: body || '',
-    icon: '/assets/images/icon.png',
-    badge: '/assets/images/icon.png',
+    icon: '/icons/icon-192.png',
+    badge: '/icons/icon-192.png',
   });
 });

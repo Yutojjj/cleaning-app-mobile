@@ -4,10 +4,10 @@
     "slug": "pineapple-app",
     "version": "1.0.0",
     "scheme": "pineapple-app",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/icon.jpg",
     "web": {
       "output": "static",
-      "favicon": "./assets/images/icon.png",
+      "favicon": "./assets/images/icon.jpg",
       "name": "パイナップル",
       "shortName": "パイナップル",
       "description": "パイナップル",
@@ -26,17 +26,12 @@
             "theme_color": "#FF69B4",
             "icons": [
               {
-                "src": "/assets/images/icon.png",
+                "src": "/icons/icon-192.png",
                 "sizes": "192x192",
                 "type": "image/png"
               },
               {
-                "src": "/assets/images/icon.png",
-                "sizes": "512x512",
-                "type": "image/png"
-              },
-              {
-                "src": "/assets/images/icon.png",
+                "src": "/icons/icon-512.png",
                 "sizes": "512x512",
                 "type": "image/png",
                 "purpose": "maskable"
