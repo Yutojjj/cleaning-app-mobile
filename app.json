@@ -3,7 +3,11 @@
     "name": "パイナップル",
     "slug": "pineapple-app",
     "version": "1.0.0",
+<<<<<<< HEAD
     "scheme": "pineapple-app",
+=======
+    "scheme": "pineapple-app", 
+>>>>>>> 70f310b2f054c909a3c4a408c96bd08617216307
     "icon": "./assets/images/icon.png",
     "web": {
       "output": "static",
