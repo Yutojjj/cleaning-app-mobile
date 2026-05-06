@@ -67,9 +67,9 @@ export default function TabLayout() {
             backgroundColor: '#FFFFFF',
             borderTopWidth: 1,
             borderTopColor: '#E2E8F0',
-            height: Platform.OS === 'android' ? 100 : 85,
-            paddingBottom: Platform.OS === 'android' ? 40 : 25,
-            paddingTop: 10,
+            height: Platform.OS === 'android' ? 70 : 85,
+            paddingBottom: Platform.OS === 'android' ? 10 : 25,
+            paddingTop: 8,
           },
           tabBarLabelStyle: {
             fontSize: 10,
@@ -124,6 +124,7 @@ export default function TabLayout() {
         <Tabs.Screen name="account" options={{ href: null }} />
         <Tabs.Screen name="shift-auto-settings" options={{ href: null }} />
         <Tabs.Screen name="daily-pay-approval" options={{ href: null }} />
+        <Tabs.Screen name="admin-attendance" options={{ href: null }} />
         <Tabs.Screen name="approval" options={{ href: null }} />
         <Tabs.Screen name="salary-calc" options={{ href: null }} />
         <Tabs.Screen name="shift-settings" options={{ href: null }} />

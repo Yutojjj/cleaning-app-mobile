@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { onAuthStateChanged } from 'firebase/auth';
-import { addDoc, collection, doc, getDoc, getDocs, query, updateDoc, where } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { Alert, Dimensions, Modal, Platform, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { auth, db } from '../../firebase';
@@ -18,7 +18,7 @@ const JissekiTimePicker = ({ value, onChange, disabled }: { value: string, onCha
   const [startM, setStartM] = useState('00');
   const [endH, setEndH] = useState('24');
   const [endM, setEndM] = useState('00');
-  const [pickerConfig, setPickerConfig] = useState<{ visible: boolean, type: 'startH'|'startM'|'endH'|'endM' } | null>(null);
+  const [openPicker, setOpenPicker] = useState<'startH'|'startM'|'endH'|'endM'|null>(null);
 
   useEffect(() => {
     if (value && value.includes('-')) {
@@ -33,32 +33,17 @@ const JissekiTimePicker = ({ value, onChange, disabled }: { value: string, onCha
     onChange(`${sh}:${sm}-${eh}:${finalEm}`);
   };
 
-  const renderPickerModal = () => {
-    if (!pickerConfig) return null;
-    const isHour = pickerConfig.type.endsWith('H');
-    const data = isHour ? Array.from({length: 25}, (_, i) => String(i).padStart(2, '0')) : Array.from({length: 12}, (_, i) => String(i * 5).padStart(2, '0'));
-    return (
-      <Modal visible={true} transparent animationType="fade">
-        <TouchableOpacity style={{flex:1, backgroundColor:'rgba(0,0,0,0.5)', justifyContent:'center', alignItems:'center'}} onPress={() => setPickerConfig(null)}>
-          <View style={{backgroundColor:'#FFF', width:'70%', height: 350, borderRadius:20, padding:10}}>
-            <Text style={{textAlign:'center', fontWeight:'bold', padding:15, borderBottomWidth:1, borderColor:'#EEE'}}>{isHour ? '時を選択' : '分を選択'}</Text>
-            <ScrollView>
-              {data.map(item => (
-                <TouchableOpacity key={item} style={{padding:15, alignItems:'center', borderBottomWidth:1, borderColor:'#F1F5F9'}} onPress={() => {
-                  let nextSh = startH, nextSm = startM, nextEh = endH, nextEm = endM;
-                  if(pickerConfig.type === 'startH') { nextSh = item; setStartH(item); }
-                  if(pickerConfig.type === 'startM') { nextSm = item; setStartM(item); }
-                  if(pickerConfig.type === 'endH') { nextEh = item; setEndH(item); }
-                  if(pickerConfig.type === 'endM') { nextEm = item; setEndM(item); }
-                  applyTime(nextSh, nextSm, nextEh, nextEm);
-                  setPickerConfig(null);
-                }}><Text style={{fontSize:22, fontWeight:'bold'}}>{item}</Text></TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        </TouchableOpacity>
-      </Modal>
-    );
+  const hours = Array.from({length: 25}, (_, i) => String(i).padStart(2, '0'));
+  const minutes = Array.from({length: 12}, (_, i) => String(i * 5).padStart(2, '0'));
+
+  const handleSelect = (type: 'startH'|'startM'|'endH'|'endM', item: string) => {
+    let sh = startH, sm = startM, eh = endH, em = endM;
+    if (type === 'startH') { sh = item; setStartH(item); }
+    if (type === 'startM') { sm = item; setStartM(item); }
+    if (type === 'endH') { eh = item; setEndH(item); }
+    if (type === 'endM') { em = item; setEndM(item); }
+    applyTime(sh, sm, eh, em);
+    setOpenPicker(null);
   };
 
   if (disabled) return <View style={localStyles.readonlyBox}><Text style={{ color: '#1e293b' }}>{value}</Text></View>;
@@ -71,21 +56,42 @@ const JissekiTimePicker = ({ value, onChange, disabled }: { value: string, onCha
     );
   }
 
+  const displayEndM = endH === '24' ? '00' : endM;
+  const pickerData = openPicker?.endsWith('H') ? hours : minutes;
+
   return (
-    <View style={{ backgroundColor: '#F8FAFC', padding: 15, borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', alignItems: 'center' }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <TouchableOpacity style={localStyles.dropdownBtn} onPress={() => setPickerConfig({visible:true, type:'startH'})}><Text style={localStyles.dropdownText}>{startH}</Text><Ionicons name="caret-down" size={14}/></TouchableOpacity>
+    <View style={{ backgroundColor: '#F8FAFC', borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0' }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 15 }}>
+        <TouchableOpacity style={[localStyles.dropdownBtn, openPicker === 'startH' && localStyles.dropdownBtnOpen]} onPress={() => setOpenPicker(openPicker === 'startH' ? null : 'startH')}>
+          <Text style={localStyles.dropdownText}>{startH}</Text><Ionicons name={openPicker === 'startH' ? 'caret-up' : 'caret-down'} size={14} color="#64748b"/>
+        </TouchableOpacity>
         <Text style={{fontWeight:'bold', marginHorizontal:5}}>:</Text>
-        <TouchableOpacity style={localStyles.dropdownBtn} onPress={() => setPickerConfig({visible:true, type:'startM'})}><Text style={localStyles.dropdownText}>{startM}</Text><Ionicons name="caret-down" size={14}/></TouchableOpacity>
-        <Text style={{fontSize: 20, marginHorizontal: 15, color:'#CBD5E1'}}>〜</Text>
-        <TouchableOpacity style={localStyles.dropdownBtn} onPress={() => setPickerConfig({visible:true, type:'endH'})}><Text style={localStyles.dropdownText}>{endH}</Text><Ionicons name="caret-down" size={14}/></TouchableOpacity>
+        <TouchableOpacity style={[localStyles.dropdownBtn, openPicker === 'startM' && localStyles.dropdownBtnOpen]} onPress={() => setOpenPicker(openPicker === 'startM' ? null : 'startM')}>
+          <Text style={localStyles.dropdownText}>{startM}</Text><Ionicons name={openPicker === 'startM' ? 'caret-up' : 'caret-down'} size={14} color="#64748b"/>
+        </TouchableOpacity>
+        <Text style={{fontSize: 18, marginHorizontal: 12, color:'#CBD5E1'}}>〜</Text>
+        <TouchableOpacity style={[localStyles.dropdownBtn, openPicker === 'endH' && localStyles.dropdownBtnOpen]} onPress={() => setOpenPicker(openPicker === 'endH' ? null : 'endH')}>
+          <Text style={localStyles.dropdownText}>{endH}</Text><Ionicons name={openPicker === 'endH' ? 'caret-up' : 'caret-down'} size={14} color="#64748b"/>
+        </TouchableOpacity>
         <Text style={{fontWeight:'bold', marginHorizontal:5}}>:</Text>
-        <TouchableOpacity style={localStyles.dropdownBtn} onPress={() => setPickerConfig({visible:true, type:'endM'})}><Text style={localStyles.dropdownText}>{endH === '24' ? '00' : endM}</Text><Ionicons name="caret-down" size={14}/></TouchableOpacity>
+        <TouchableOpacity style={[localStyles.dropdownBtn, openPicker === 'endM' && localStyles.dropdownBtnOpen]} onPress={() => setOpenPicker(openPicker === 'endM' ? null : 'endM')}>
+          <Text style={localStyles.dropdownText}>{displayEndM}</Text><Ionicons name={openPicker === 'endM' ? 'caret-up' : 'caret-down'} size={14} color="#64748b"/>
+        </TouchableOpacity>
       </View>
-      <TouchableOpacity style={{ marginTop: 15, padding: 8, backgroundColor: '#F1F5F9', borderRadius: 8 }} onPress={() => onChange('')}>
+      {openPicker && (
+        <View style={{ borderTopWidth: 1, borderColor: '#E2E8F0', maxHeight: 200 }}>
+          <ScrollView nestedScrollEnabled={true} showsVerticalScrollIndicator={true}>
+            {pickerData!.map(item => (
+              <TouchableOpacity key={item} style={{ padding: 14, alignItems: 'center', borderBottomWidth: 1, borderColor: '#F1F5F9' }} onPress={() => handleSelect(openPicker, item)}>
+                <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1e293b' }}>{item}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+      <TouchableOpacity style={{ margin: 10, padding: 8, backgroundColor: '#F1F5F9', borderRadius: 8, alignItems: 'center' }} onPress={() => onChange('')}>
         <Text style={{ color: '#64748b', fontSize: 12, fontWeight: 'bold' }}>時間をクリア</Text>
       </TouchableOpacity>
-      {renderPickerModal()}
     </View>
   );
 };
@@ -264,6 +270,20 @@ export default function AttendanceScreen() {
     }
   };
 
+  const cancelDailyPayRequest = async (req: any) => {
+    Alert.alert('申請取り消し', 'この申請を取り消しますか？', [
+      { text: 'キャンセル', style: 'cancel' },
+      { text: '取り消す', style: 'destructive', onPress: async () => {
+        try {
+          await deleteDoc(doc(db, 'dailyPayRequests', req.id));
+          setDailyPayRequests(prev => prev.filter(r => r.id !== req.id));
+        } catch {
+          Alert.alert('エラー', '取り消しに失敗しました');
+        }
+      }}
+    ]);
+  };
+
   const renderDays = () => {
     const y = currentMonth.getFullYear(), m = currentMonth.getMonth();
     const days = new Date(y, m + 1, 0).getDate(), first = new Date(y, m, 1).getDay();
@@ -393,6 +413,11 @@ export default function AttendanceScreen() {
                     <View style={{ backgroundColor: s.bg, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }}>
                       <Text style={{ fontSize: 11, fontWeight: 'bold', color: s.color }}>{s.text}</Text>
                     </View>
+                    {req.status === 'pending' && (
+                      <TouchableOpacity onPress={() => cancelDailyPayRequest(req)}>
+                        <Ionicons name="close-circle" size={22} color="#EF4444" />
+                      </TouchableOpacity>
+                    )}
                   </View>
                 </View>
               );
@@ -543,6 +568,7 @@ const localStyles = StyleSheet.create({
   label: { fontSize: 13, color: '#64748b', fontWeight: 'bold', marginBottom: 6 },
   readonlyBox: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: '#F1F5F9', padding: 15, borderRadius: 12, marginBottom: 15 },
   dropdownBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, backgroundColor: '#FFF', borderRadius: 8, borderWidth: 1, borderColor: '#CBD5E1' },
+  dropdownBtnOpen: { borderColor: '#B8860B', backgroundColor: '#FFF8E7' },
   dropdownText: { fontSize: 18, fontWeight: 'bold', color: '#1e293b', marginRight: 5 },
   goldBtn: { backgroundColor: '#B8860B', padding: 15, borderRadius: 12, alignItems: 'center', marginTop: 15 },
   inputField: { backgroundColor: '#F8FAFC', padding: 14, borderRadius: 12, borderWidth: 1, borderColor: '#CBD5E1', fontSize: 16 },

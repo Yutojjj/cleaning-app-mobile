@@ -148,6 +148,14 @@ export default function AdminMenuScreen() {
           </View>
         </TouchableOpacity>
 
+        <TouchableOpacity style={styles.menuBtnCard} onPress={() => router.push('/admin-attendance')}>
+          <Ionicons name="document-text" size={40} color="#B8860B" />
+          <View style={styles.textContainer}>
+            <Text style={styles.menuBtnTitle}>出勤簿管理</Text>
+            <Text style={styles.menuBtnSub}>全スタッフの出勤簿確認・実績編集・月別承認</Text>
+          </View>
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.menuBtnCard} onPress={() => router.push('/daily-pay-approval')}>
           <Ionicons name="cash" size={40} color="#B8860B" />
           <View style={styles.textContainer}>
