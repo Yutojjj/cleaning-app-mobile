@@ -205,6 +205,9 @@ export default function HomeScreen() {
           }
           await fetchUsersAndEvents();
         }
+      } else {
+        setUser(null);
+        setUserRole(null);
       }
       setLoading(false);
     });
@@ -401,7 +404,7 @@ export default function HomeScreen() {
             <TouchableOpacity style={{ backgroundColor: '#F8FAFC', padding: 15, borderRadius: 12, marginBottom: 20, borderWidth: 1, borderColor: '#E2E8F0' }} onPress={() => setStatsExpanded(!statsExpanded)} activeOpacity={0.7}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                 <View>
-                  <Text style={{ fontSize: 12, color: '#64748b', fontWeight: 'bold' }}>今月の見込み給与(差引後)</Text>
+                  <Text style={{ fontSize: 12, color: '#64748b', fontWeight: 'bold' }}>今月の見込み報酬(差引後)</Text>
                   <Text style={{ fontSize: 24, fontWeight: '900', color: '#B8860B', marginVertical: 5 }}>¥{stats.finalSalary.toLocaleString()}</Text>
                 </View>
                 <Ionicons name={statsExpanded ? "chevron-up" : "chevron-down"} size={20} color="#64748b" />
@@ -409,7 +412,7 @@ export default function HomeScreen() {
 
               {statsExpanded && (
                 <View style={{ marginTop: 15, paddingTop: 15, borderTopWidth: 1, borderTopColor: '#F1F5F9' }}>
-                  <View style={localStyles.statRow}><Text style={localStyles.statTitle}>総支給額 (給与)</Text><Text style={localStyles.statData}>¥{stats.expectedSalary.toLocaleString()}</Text></View>
+                  <View style={localStyles.statRow}><Text style={localStyles.statTitle}>総支給額 (報酬)</Text><Text style={localStyles.statData}>¥{stats.expectedSalary.toLocaleString()}</Text></View>
                   <View style={localStyles.statRow}><Text style={localStyles.statTitle}>差し引き額 (日払い等)</Text><Text style={localStyles.statData}>¥{stats.advancePayment.toLocaleString()}</Text></View>
                   <View style={{ marginVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }} />
                   <View style={localStyles.statRow}><Text style={localStyles.statTitle}>出勤日数</Text><Text style={localStyles.statData}>{stats.workingDays} 日</Text></View>
@@ -424,7 +427,7 @@ export default function HomeScreen() {
 
             <TouchableOpacity style={localStyles.drawerLink} onPress={() => { setIsMenuOpen(false); setWebPayslipVisible(true); }}>
               <Ionicons name="document-text" size={22} color="#0f172a" style={{ marginRight: 15 }} />
-              <Text style={localStyles.drawerLinkText}>WEB明細 (過去の給与)</Text>
+              <Text style={localStyles.drawerLinkText}>WEB明細 (過去の報酬)</Text>
               <Ionicons name="chevron-forward" size={18} color="#CBD5E1" style={{ marginLeft: 'auto' }} />
             </TouchableOpacity>
 
@@ -449,14 +452,14 @@ export default function HomeScreen() {
             }}>
               <Ionicons name="arrow-back" size={28} color="#B8860B" />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>{selectedPayslipMonth ? `${selectedPayslipMonth.replace('-', '年')}月分 給与明細` : 'WEB明細一覧'}</Text>
+            <Text style={styles.headerTitle}>{selectedPayslipMonth ? `${selectedPayslipMonth.replace('-', '年')}月分 報酬明細` : 'WEB明細一覧'}</Text>
             <View style={{ width: 28 }} />
           </View>
           
           <ScrollView contentContainerStyle={{ padding: 20 }}>
             {!selectedPayslipMonth ? (
               approvedMonths.length === 0 ? (
-                <Text style={{ textAlign: 'center', color: '#94a3b8', marginTop: 40 }}>確定した過去の給与明細はありません。</Text>
+                <Text style={{ textAlign: 'center', color: '#94a3b8', marginTop: 40 }}>確定した過去の報酬明細はありません。</Text>
               ) : (
                 approvedMonths.map(mKey => {
                   const mStats = getStatsForMonth(user, mKey);
@@ -482,7 +485,7 @@ export default function HomeScreen() {
                 
                 <View style={{ borderTopWidth: 1, borderTopColor: '#F1F5F9', paddingTop: 20 }}>
                   <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#B8860B', marginBottom: 15 }}>支給内訳</Text>
-                  <View style={localStyles.statRow}><Text style={localStyles.statTitle}>総支給額 (給与)</Text><Text style={localStyles.statData}>¥{getStatsForMonth(user, selectedPayslipMonth).expectedSalary.toLocaleString()}</Text></View>
+                  <View style={localStyles.statRow}><Text style={localStyles.statTitle}>総支給額 (報酬)</Text><Text style={localStyles.statData}>¥{getStatsForMonth(user, selectedPayslipMonth).expectedSalary.toLocaleString()}</Text></View>
                   <View style={localStyles.statRow}><Text style={localStyles.statTitle}>差し引き額 (日払い等)</Text><Text style={localStyles.statData}>¥{getStatsForMonth(user, selectedPayslipMonth).advancePayment.toLocaleString()}</Text></View>
                   <View style={{ marginVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }} />
                   <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#B8860B', marginBottom: 15 }}>勤怠実績</Text>

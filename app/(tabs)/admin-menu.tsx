@@ -11,32 +11,35 @@ import { auth, db } from '../../firebase';
 export default function AdminMenuScreen() {
   const router = useRouter();
   const [pendingCount, setPendingCount] = useState(0);
+  const [unsubmittedCount, setUnsubmittedCount] = useState(0);
 
   useEffect(() => {
     const fetchPending = async () => {
       try {
-        const curMonthKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+        const today = new Date();
+        const curMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
         const snap = await getDocs(collection(db, 'users'));
-        let count = 0;
+        let submitted = 0;
+        let unsubmitted = 0;
         snap.forEach(d => {
           const u = d.data();
-          if (u.role !== 'admin' && u.monthlyStatus && u.monthlyStatus[curMonthKey] === 'submitted') {
-            count++;
+          if (u.role !== 'admin') {
+            const status = u.monthlyStatus?.[curMonthKey];
+            if (status === 'submitted') submitted++;
+            else if (!status) unsubmitted++;
           }
         });
-        setPendingCount(count);
+        setPendingCount(submitted);
+        setUnsubmittedCount(unsubmitted);
       } catch (e) {}
     };
     fetchPending();
   }, []);
 
   const handleLogout = async () => {
-    try { 
-      // 先にルート（ログイン画面があるタブ）に遷移してからログアウト処理を行うことでバグを回避
+    try {
+      await signOut(auth);
       router.replace('/');
-      setTimeout(async () => {
-        await signOut(auth);
-      }, 100);
     } catch (error) {}
   };
 
@@ -97,8 +100,8 @@ export default function AdminMenuScreen() {
         <TouchableOpacity style={styles.menuBtnCard} onPress={() => router.push('/salary-calc')}>
           <Ionicons name="calculator" size={40} color="#B8860B" />
           <View style={styles.textContainer}>
-            <Text style={styles.menuBtnTitle}>給料計算</Text>
-            <Text style={styles.menuBtnSub}>スタッフの提出状況確認・給与内訳の計算</Text>
+            <Text style={styles.menuBtnTitle}>報酬計算</Text>
+            <Text style={styles.menuBtnSub}>スタッフの提出状況確認・報酬内訳の計算</Text>
           </View>
         </TouchableOpacity>
 
@@ -115,6 +118,12 @@ export default function AdminMenuScreen() {
           <View style={styles.textContainer}>
             <Text style={styles.menuBtnTitle}>申請・承認管理</Text>
             <Text style={styles.menuBtnSub}>提出された出勤実績の確認・一括承認</Text>
+            {pendingCount > 0 && (
+              <Text style={{ fontSize: 11, color: '#EF4444', fontWeight: 'bold', marginTop: 3 }}>未承認: {pendingCount}件</Text>
+            )}
+            {unsubmittedCount > 0 && (
+              <Text style={{ fontSize: 11, color: '#F59E0B', fontWeight: 'bold', marginTop: 1 }}>未提出: {unsubmittedCount}名</Text>
+            )}
           </View>
           {pendingCount > 0 && (
             <View style={{ backgroundColor: '#EF4444', borderRadius: 15, paddingHorizontal: 10, paddingVertical: 5, justifyContent: 'center' }}>

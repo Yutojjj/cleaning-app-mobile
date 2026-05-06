@@ -124,7 +124,7 @@ export default function SalaryCalcScreen() {
 
   const exportCSV = async () => {
     // 文字化け対策のため、先頭にBOM (\uFEFF) を追加
-    let csvString = "\uFEFF名前,出勤日数,実労働時間,所定内労働時間,残業時間,深夜時間,DM回数,基本給,残業手当,深夜手当,DM手当,総支給額(給与),差し引き額(日払い等),差引支給額\n";
+    let csvString = "\uFEFF名前,出勤日数,実労働時間,所定内労働時間,残業時間,深夜時間,DM回数,基本給,残業手当,深夜手当,DM手当,総支給額(報酬),差し引き額(日払い等),差引支給額\n";
     staffList.forEach(staff => {
       const s = getStats(staff, curMonthKey);
       csvString += `${staff.name},${s.workingDays},${s.actualHours},${s.regularHours},${s.overtimeHours},${s.nightHours},${s.dmCount},${s.baseSalary},${s.overtimeSalary},${s.nightSalary},${s.dmAllowance},${s.expectedSalary},${s.advancePayment},${s.finalSalary}\n`;
@@ -177,7 +177,7 @@ export default function SalaryCalcScreen() {
           <TouchableOpacity onPress={() => router.push('/admin-menu')}>
             <Ionicons name="arrow-back" size={28} color="#B8860B" />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, {marginLeft: 10}]}>給料計算</Text>
+          <Text style={[styles.headerTitle, {marginLeft: 10}]}>報酬計算</Text>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#B8860B', marginRight: 15 }}>合計: ¥{totalAllStaffFinalSalary.toLocaleString()}</Text>
@@ -220,7 +220,7 @@ export default function SalaryCalcScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{selectedStaff?.name} の給与内訳</Text>
+              <Text style={styles.modalTitle}>{selectedStaff?.name} の報酬内訳</Text>
               <TouchableOpacity onPress={() => setSelectedStaff(null)}><Ionicons name="close" size={28} /></TouchableOpacity>
             </View>
 
@@ -233,7 +233,7 @@ export default function SalaryCalcScreen() {
                 </Text>
               </View>
 
-              <View style={styles.statRow}><Text style={styles.statTitle}>総支給額 (給与)</Text><Text style={styles.statData}>¥{selectedStaff?.stats?.expectedSalary.toLocaleString()}</Text></View>
+              <View style={styles.statRow}><Text style={styles.statTitle}>総支給額 (報酬)</Text><Text style={styles.statData}>¥{selectedStaff?.stats?.expectedSalary.toLocaleString()}</Text></View>
               
               <View style={[styles.statRow, { alignItems: 'center' }]}>
                 <Text style={styles.statTitle}>差し引き額 (日払い等)</Text>

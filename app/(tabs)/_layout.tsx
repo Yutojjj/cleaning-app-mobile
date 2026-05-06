@@ -20,16 +20,20 @@ export default function TabLayout() {
             setIsAdmin(true);
             
             const fetchPending = async () => {
-              const curMonthKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+              const today = new Date();
+              const curMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
               const snap = await getDocs(collection(db, 'users'));
-              let count = 0;
+              let submitted = 0;
+              let unsubmitted = 0;
               snap.forEach(d => {
                 const u = d.data();
-                if (u.role !== 'admin' && u.monthlyStatus && u.monthlyStatus[curMonthKey] === 'submitted') {
-                  count++;
+                if (u.role !== 'admin') {
+                  const status = u.monthlyStatus?.[curMonthKey];
+                  if (status === 'submitted') submitted++;
+                  else if (!status && today.getDate() >= 25) unsubmitted++;
                 }
               });
-              setPendingCount(count);
+              setPendingCount(submitted + unsubmitted);
             };
             fetchPending();
           } else {

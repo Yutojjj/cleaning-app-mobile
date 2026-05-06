@@ -126,8 +126,22 @@ export default function AttendanceScreen() {
           const data = d.data();
           setAttendance(data.attendance || {});
           setShifts(data.shifts || {});
-          setMonthlyStatus(data.monthlyStatus || {});
+          const status = data.monthlyStatus || {};
+          setMonthlyStatus(status);
           setUserDmItems(data.dmItems || []);
+
+          // 25日以降で未提出の場合にリマインダーを表示
+          const today = new Date();
+          if (today.getDate() >= 25) {
+            const mKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+            if (!status[mKey]) {
+              Alert.alert(
+                '出勤簿の提出期限',
+                '毎月25日になりました。\n今月の出勤簿を確認・提出してください。',
+                [{ text: '確認' }]
+              );
+            }
+          }
         }
         fetchEvents();
       }

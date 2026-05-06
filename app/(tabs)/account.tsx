@@ -5,8 +5,10 @@ import { Alert, Modal, Platform, SafeAreaView, ScrollView, StatusBar, StyleSheet
 
 import { getApp, getApps, initializeApp } from 'firebase/app';
 import { createUserWithEmailAndPassword, getAuth, signOut } from 'firebase/auth';
-import { collection, deleteDoc, doc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDoc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
+
+const DEFAULT_SITES = ['warp', 'thewarp', 'ラドンナ', '他'];
 
 const kanaToRomaji = (kana: string) => {
   const mapping: Record<string, string> = {
@@ -47,18 +49,22 @@ export default function AccountScreen() {
   const router = useRouter();
   const [accountList, setAccountList] = useState<any[]>([]);
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
-  
+
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [newName, setNewName] = useState('');
   const [newNickname, setNewNickname] = useState('');
   const [newSites, setNewSites] = useState<string[]>(['warp']);
-  const [newRole, setNewRole] = useState('アルバイト'); 
+  const [newRole, setNewRole] = useState('アルバイト');
 
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState('');
   const [editSites, setEditSites] = useState<string[]>([]);
   const [editRole, setEditRole] = useState('');
-  const [salaryAmount, setSalaryAmount] = useState(''); 
+  const [salaryAmount, setSalaryAmount] = useState('');
+
+  const [sitesList, setSitesList] = useState<string[]>(DEFAULT_SITES);
+  const [storeModalVisible, setStoreModalVisible] = useState(false);
+  const [newStoreName, setNewStoreName] = useState(''); 
 
   const fetchAccounts = async () => {
     try {
@@ -68,7 +74,37 @@ export default function AccountScreen() {
     } catch (error) {}
   };
 
-  useEffect(() => { fetchAccounts(); }, []);
+  const fetchSites = async () => {
+    try {
+      const snap = await getDoc(doc(db, 'settings', 'siteConfig'));
+      if (snap.exists() && snap.data().sites) {
+        setSitesList(snap.data().sites);
+      }
+    } catch (error) {}
+  };
+
+  const handleAddStore = async () => {
+    const name = newStoreName.trim();
+    if (!name) { Alert.alert('エラー', '店名を入力してください'); return; }
+    if (sitesList.includes(name)) { Alert.alert('エラー', 'すでに登録されている店名です'); return; }
+    const next = [...sitesList, name];
+    setSitesList(next);
+    setNewStoreName('');
+    await setDoc(doc(db, 'settings', 'siteConfig'), { sites: next });
+  };
+
+  const handleDeleteStore = async (site: string) => {
+    Alert.alert('確認', `「${site}」を削除しますか？`, [
+      { text: 'キャンセル', style: 'cancel' },
+      { text: '削除', style: 'destructive', onPress: async () => {
+        const next = sitesList.filter(s => s !== site);
+        setSitesList(next);
+        await setDoc(doc(db, 'settings', 'siteConfig'), { sites: next });
+      }}
+    ]);
+  };
+
+  useEffect(() => { fetchAccounts(); fetchSites(); }, []);
 
   const toggleSite = (site: string, currentSites: string[], setSites: (sites: string[]) => void) => {
     if (currentSites.includes(site)) {
@@ -193,7 +229,10 @@ export default function AccountScreen() {
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.push('/admin-menu')}><Ionicons name="arrow-back" size={24} color="#B8860B" /></TouchableOpacity>
         <Text style={styles.headerTitle}>アカウント管理</Text>
-        <TouchableOpacity onPress={() => setIsAddModalVisible(true)}><Ionicons name="person-add" size={24} color="#B8860B" /></TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 12 }}>
+          <TouchableOpacity onPress={() => setStoreModalVisible(true)}><Ionicons name="storefront-outline" size={24} color="#B8860B" /></TouchableOpacity>
+          <TouchableOpacity onPress={() => setIsAddModalVisible(true)}><Ionicons name="person-add" size={24} color="#B8860B" /></TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 100 }}>
@@ -290,7 +329,7 @@ export default function AccountScreen() {
                 
                 <Text style={localStyles.inputLabel}>配属先 (複数選択可)</Text>
                 <View style={localStyles.pickerRow}>
-                  {['warp', 'thewarp', 'ラドンナ', '他'].map(s => (
+                  {sitesList.map(s => (
                     <TouchableOpacity key={s} style={[localStyles.pickBtn, editSites.includes(s) && localStyles.pickBtnActive]} onPress={() => toggleSite(s, editSites, setEditSites)}>
                       <Text style={{ color: editSites.includes(s) ? '#FFF' : '#333', fontWeight: 'bold' }}>{s.toUpperCase()}</Text>
                     </TouchableOpacity>
@@ -348,6 +387,42 @@ export default function AccountScreen() {
         </View>
       </Modal>
 
+      {/* 店舗管理モーダル */}
+      <Modal visible={storeModalVisible} animationType="slide" transparent onRequestClose={() => setStoreModalVisible(false)}>
+        <View style={localStyles.modalOverlay}>
+          <View style={[localStyles.modalContent, { maxHeight: '70%' }]}>
+            <Text style={localStyles.modalTitleGold}>店舗管理</Text>
+            <ScrollView showsVerticalScrollIndicator={false} style={{ marginBottom: 15 }}>
+              {sitesList.map(site => (
+                <View key={site} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
+                  <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1e293b' }}>{site}</Text>
+                  {!DEFAULT_SITES.includes(site) && (
+                    <TouchableOpacity onPress={() => handleDeleteStore(site)} style={{ padding: 8, backgroundColor: '#FEF2F2', borderRadius: 8 }}>
+                      <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              ))}
+            </ScrollView>
+            <Text style={localStyles.inputLabel}>新しい店名を追加</Text>
+            <View style={{ flexDirection: 'row', gap: 10, marginBottom: 20 }}>
+              <TextInput
+                style={[localStyles.textInput, { flex: 1, marginBottom: 0 }]}
+                value={newStoreName}
+                onChangeText={setNewStoreName}
+                placeholder="例: ニュースタジオ"
+              />
+              <TouchableOpacity style={{ backgroundColor: '#B8860B', paddingHorizontal: 18, borderRadius: 12, justifyContent: 'center' }} onPress={handleAddStore}>
+                <Text style={{ color: '#FFF', fontWeight: 'bold' }}>追加</Text>
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity style={localStyles.closeBtn} onPress={() => setStoreModalVisible(false)}>
+              <Text style={localStyles.closeBtnText}>閉じる</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       <Modal visible={isAddModalVisible} animationType="slide" transparent onRequestClose={() => setIsAddModalVisible(false)}>
         <View style={localStyles.modalOverlay}>
           <View style={[localStyles.modalContent, { height: '85%' }]}>
@@ -359,7 +434,7 @@ export default function AccountScreen() {
               <TextInput style={localStyles.textInput} value={newNickname} onChangeText={setNewNickname} placeholder="たろう" />
               <Text style={localStyles.inputLabel}>配属先 (複数選択可)</Text>
               <View style={localStyles.pickerRow}>
-                {['warp', 'thewarp', 'ラドンナ', '他'].map(s => (
+                {sitesList.map(s => (
                   <TouchableOpacity key={s} style={[localStyles.pickBtn, newSites.includes(s) && localStyles.pickBtnActive]} onPress={() => toggleSite(s, newSites, setNewSites)}>
                     <Text style={{ color: newSites.includes(s) ? '#FFF' : '#333', fontWeight: 'bold' }}>{s.toUpperCase()}</Text>
                   </TouchableOpacity>
