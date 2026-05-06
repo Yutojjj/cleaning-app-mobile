@@ -148,6 +148,14 @@ export default function AdminMenuScreen() {
           </View>
         </TouchableOpacity>
 
+        <TouchableOpacity style={styles.menuBtnCard} onPress={() => router.push('/daily-pay-approval')}>
+          <Ionicons name="cash" size={40} color="#B8860B" />
+          <View style={styles.textContainer}>
+            <Text style={styles.menuBtnTitle}>日払い承認</Text>
+            <Text style={styles.menuBtnSub}>スタッフからの日払い申請を承認・却下する</Text>
+          </View>
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.menuBtnCard} onPress={exportTimecardsCSV}>
           <Ionicons name="download-outline" size={40} color="#B8860B" />
           <View style={styles.textContainer}>
