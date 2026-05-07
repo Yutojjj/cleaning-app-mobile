@@ -70,14 +70,21 @@ const JissekiTimePicker = ({ value, onChange }: { value: string, onChange: (v: s
         </TouchableOpacity>
       </View>
       {openPicker && (
-        <View style={{ borderTopWidth: 1, borderColor: '#E2E8F0', maxHeight: 180 }}>
-          <ScrollView nestedScrollEnabled={true} showsVerticalScrollIndicator={true}>
-            {pickerData!.map(item => (
-              <TouchableOpacity key={item} style={{ padding: 13, alignItems: 'center', borderBottomWidth: 1, borderColor: '#F1F5F9' }} onPress={() => handleSelect(openPicker, item)}>
-                <Text style={{ fontSize: 19, fontWeight: 'bold', color: '#1e293b' }}>{item}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+        <View style={{ borderTopWidth: 1, borderColor: '#E2E8F0', paddingVertical: 6, paddingHorizontal: 4 }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+            {pickerData!.map(item => {
+              const curVal = openPicker === 'startH' ? startH : openPicker === 'startM' ? startM : openPicker === 'endH' ? endH : displayEndM;
+              return (
+                <TouchableOpacity
+                  key={item}
+                  style={{ width: openPicker.endsWith('H') ? '20%' : '25%', paddingVertical: 10, alignItems: 'center', backgroundColor: item === curVal ? '#B8860B' : 'transparent', borderRadius: 6 }}
+                  onPress={() => handleSelect(openPicker, item)}
+                >
+                  <Text style={{ fontSize: 15, fontWeight: 'bold', color: item === curVal ? '#FFF' : '#1e293b' }}>{item}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
       )}
       <TouchableOpacity style={{ margin: 8, padding: 7, backgroundColor: '#F1F5F9', borderRadius: 8, alignItems: 'center' }} onPress={() => onChange('')}>

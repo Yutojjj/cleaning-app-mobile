@@ -8,7 +8,7 @@ import {
   signInWithEmailAndPassword,
   signOut
 } from 'firebase/auth';
-import { addDoc, collection, doc, getDoc, getDocs } from 'firebase/firestore';
+import { addDoc, collection, doc, getDoc, getDocs, updateDoc } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator, Alert, Dimensions, Modal,
@@ -254,6 +254,22 @@ export default function HomeScreen() {
         });
       }
       
+      if (actionType === '出勤') {
+        try {
+          const now = new Date();
+          const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+          const dateKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+          const userRef = doc(db, 'users', user.uid);
+          const userSnap = await getDoc(userRef);
+          if (userSnap.exists()) {
+            const att = userSnap.data().attendance || {};
+            await updateDoc(userRef, {
+              attendance: { ...att, [dateKey]: { ...(att[dateKey] || {}), dakoku: timeStr } }
+            });
+          }
+        } catch {}
+      }
+
       Alert.alert("完了", `${actionType} を記録しました`);
       if (actionType === '打刻修正') { setCorrectionReason(''); setCorrectionModalVisible(false); }
     } catch (error) { Alert.alert("通信エラー"); } 

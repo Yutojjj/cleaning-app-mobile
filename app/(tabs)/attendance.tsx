@@ -79,14 +79,21 @@ const JissekiTimePicker = ({ value, onChange, disabled }: { value: string, onCha
         </TouchableOpacity>
       </View>
       {openPicker && (
-        <View style={{ borderTopWidth: 1, borderColor: '#E2E8F0', maxHeight: 200 }}>
-          <ScrollView nestedScrollEnabled={true} showsVerticalScrollIndicator={true}>
-            {pickerData!.map(item => (
-              <TouchableOpacity key={item} style={{ padding: 14, alignItems: 'center', borderBottomWidth: 1, borderColor: '#F1F5F9' }} onPress={() => handleSelect(openPicker, item)}>
-                <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1e293b' }}>{item}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+        <View style={{ borderTopWidth: 1, borderColor: '#E2E8F0', paddingVertical: 6, paddingHorizontal: 4 }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+            {pickerData!.map(item => {
+              const curVal = openPicker === 'startH' ? startH : openPicker === 'startM' ? startM : openPicker === 'endH' ? endH : displayEndM;
+              return (
+                <TouchableOpacity
+                  key={item}
+                  style={{ width: openPicker.endsWith('H') ? '20%' : '25%', paddingVertical: 10, alignItems: 'center', backgroundColor: item === curVal ? '#B8860B' : 'transparent', borderRadius: 6 }}
+                  onPress={() => handleSelect(openPicker, item)}
+                >
+                  <Text style={{ fontSize: 15, fontWeight: 'bold', color: item === curVal ? '#FFF' : '#1e293b' }}>{item}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
       )}
       <TouchableOpacity style={{ margin: 10, padding: 8, backgroundColor: '#F1F5F9', borderRadius: 8, alignItems: 'center' }} onPress={() => onChange('')}>
@@ -198,10 +205,15 @@ export default function AttendanceScreen() {
   };
 
   const saveJisseki = async () => {
-    const newData = { ...attendance };
-    newData[selectedDate!] = { dakoku: dakokuTime !== '未打刻' ? dakokuTime : '', jisseki: jissekiTime, dmList: selectedDmList };
-    await updateDoc(doc(db, 'users', currentUid!), { attendance: newData });
-    setAttendance(newData); setModalVisible(false);
+    try {
+      const newData = { ...attendance };
+      newData[selectedDate!] = { dakoku: dakokuTime !== '未打刻' ? dakokuTime : '', jisseki: jissekiTime, dmList: selectedDmList };
+      await updateDoc(doc(db, 'users', currentUid!), { attendance: newData });
+      setAttendance(newData);
+      setModalVisible(false);
+    } catch {
+      Alert.alert('エラー', '保存に失敗しました');
+    }
   };
 
   const handleSubmit = () => {
