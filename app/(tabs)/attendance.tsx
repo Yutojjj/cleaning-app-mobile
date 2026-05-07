@@ -61,19 +61,19 @@ const JissekiTimePicker = ({ value, onChange, disabled }: { value: string, onCha
 
   return (
     <View style={{ backgroundColor: '#F8FAFC', borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0' }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 15 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 10, flexWrap: 'wrap' }}>
         <TouchableOpacity style={[localStyles.dropdownBtn, openPicker === 'startH' && localStyles.dropdownBtnOpen]} onPress={() => setOpenPicker(openPicker === 'startH' ? null : 'startH')}>
           <Text style={localStyles.dropdownText}>{startH}</Text><Ionicons name={openPicker === 'startH' ? 'caret-up' : 'caret-down'} size={14} color="#64748b"/>
         </TouchableOpacity>
-        <Text style={{fontWeight:'bold', marginHorizontal:5}}>:</Text>
+        <Text style={{fontWeight:'bold', marginHorizontal: 2}}>:</Text>
         <TouchableOpacity style={[localStyles.dropdownBtn, openPicker === 'startM' && localStyles.dropdownBtnOpen]} onPress={() => setOpenPicker(openPicker === 'startM' ? null : 'startM')}>
           <Text style={localStyles.dropdownText}>{startM}</Text><Ionicons name={openPicker === 'startM' ? 'caret-up' : 'caret-down'} size={14} color="#64748b"/>
         </TouchableOpacity>
-        <Text style={{fontSize: 18, marginHorizontal: 12, color:'#CBD5E1'}}>〜</Text>
+        <Text style={{fontSize: 16, marginHorizontal: 6, color:'#CBD5E1'}}>〜</Text>
         <TouchableOpacity style={[localStyles.dropdownBtn, openPicker === 'endH' && localStyles.dropdownBtnOpen]} onPress={() => setOpenPicker(openPicker === 'endH' ? null : 'endH')}>
           <Text style={localStyles.dropdownText}>{endH}</Text><Ionicons name={openPicker === 'endH' ? 'caret-up' : 'caret-down'} size={14} color="#64748b"/>
         </TouchableOpacity>
-        <Text style={{fontWeight:'bold', marginHorizontal:5}}>:</Text>
+        <Text style={{fontWeight:'bold', marginHorizontal: 2}}>:</Text>
         <TouchableOpacity style={[localStyles.dropdownBtn, openPicker === 'endM' && localStyles.dropdownBtnOpen]} onPress={() => setOpenPicker(openPicker === 'endM' ? null : 'endM')}>
           <Text style={localStyles.dropdownText}>{displayEndM}</Text><Ionicons name={openPicker === 'endM' ? 'caret-up' : 'caret-down'} size={14} color="#64748b"/>
         </TouchableOpacity>
@@ -205,10 +205,11 @@ export default function AttendanceScreen() {
   };
 
   const saveJisseki = async () => {
+    if (!currentUid) return;
     try {
       const newData = { ...attendance };
       newData[selectedDate!] = { dakoku: dakokuTime !== '未打刻' ? dakokuTime : '', jisseki: jissekiTime, dmList: selectedDmList };
-      await updateDoc(doc(db, 'users', currentUid!), { attendance: newData });
+      await updateDoc(doc(db, 'users', currentUid), { attendance: newData });
       setAttendance(newData);
       setModalVisible(false);
     } catch {
@@ -370,27 +371,36 @@ export default function AttendanceScreen() {
                   }
                 }
               }
-              let dakokuTimeDisplay = '', dmCountDisplay = 0;
+              
+              let dakokuTimeDisplay = '', jissekiTimeDisplay = '', dmCountDisplay = 0;
               if (day) {
                 const dayData = attendance[dateKey];
                 if (dayData && typeof dayData === 'object') {
                   if (dayData.dakoku) dakokuTimeDisplay = dayData.dakoku;
+                  if (dayData.jisseki) jissekiTimeDisplay = dayData.jisseki;
                   if (dayData.dmList) dmCountDisplay = dayData.dmList.length;
+                } else if (dayData && typeof dayData === 'string' && dayData.includes('-')) {
+                  jissekiTimeDisplay = dayData;
                 }
               }
+              
               const hasDpRequest = day ? monthRequests.some(r => r.date === dateKey) : false;
               const fmtTime = (t: string) => t.includes('-') ? t.replace('-', '\n~') : t;
 
               return (
                 <TouchableOpacity
                   key={i}
-                  style={[localStyles.dayCell, (!!plannedTime || !!dakokuTimeDisplay) && localStyles.dayCellActive, eventTitle && { backgroundColor: '#FFFBEB' }]}
+                  style={[localStyles.dayCell, (!!plannedTime || !!dakokuTimeDisplay || !!jissekiTimeDisplay) && localStyles.dayCellActive, eventTitle && { backgroundColor: '#FFFBEB' }]}
                   onPress={() => day && handleDayPress(dateKey)}
                 >
                   <Text style={localStyles.dayNum}>{day || ''}</Text>
                   {eventTitle && <View style={localStyles.eventBadge}><Text style={localStyles.eventText} numberOfLines={1}>📌 {eventTitle}</Text></View>}
                   {!!plannedTime && <Text style={localStyles.plannedText}>{fmtTime(plannedTime)}</Text>}
-                  {!!dakokuTimeDisplay && <Text style={localStyles.dakokuText}>{fmtTime(dakokuTimeDisplay)}</Text>}
+                  {!!jissekiTimeDisplay ? (
+                    <Text style={[localStyles.dakokuText, { color: '#B8860B' }]}>{fmtTime(jissekiTimeDisplay)}</Text>
+                  ) : !!dakokuTimeDisplay ? (
+                    <Text style={localStyles.dakokuText}>{fmtTime(dakokuTimeDisplay)}</Text>
+                  ) : null}
                   {dmCountDisplay > 0 && <Text style={{ fontSize: 8, color: '#10B981', fontWeight: 'bold' }}>DM:{dmCountDisplay}</Text>}
                   {hasDpRequest && <Ionicons name="cash" size={10} color="#F59E0B" />}
                 </TouchableOpacity>
@@ -579,9 +589,9 @@ const localStyles = StyleSheet.create({
   modalTitle: { fontSize: 20, fontWeight: 'bold' },
   label: { fontSize: 13, color: '#64748b', fontWeight: 'bold', marginBottom: 6 },
   readonlyBox: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: '#F1F5F9', padding: 15, borderRadius: 12, marginBottom: 15 },
-  dropdownBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, backgroundColor: '#FFF', borderRadius: 8, borderWidth: 1, borderColor: '#CBD5E1' },
+  dropdownBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 8, backgroundColor: '#FFF', borderRadius: 8, borderWidth: 1, borderColor: '#CBD5E1' },
   dropdownBtnOpen: { borderColor: '#B8860B', backgroundColor: '#FFF8E7' },
-  dropdownText: { fontSize: 18, fontWeight: 'bold', color: '#1e293b', marginRight: 5 },
+  dropdownText: { fontSize: 16, fontWeight: 'bold', color: '#1e293b', marginRight: 2 },
   goldBtn: { backgroundColor: '#B8860B', padding: 15, borderRadius: 12, alignItems: 'center', marginTop: 15 },
   inputField: { backgroundColor: '#F8FAFC', padding: 14, borderRadius: 12, borderWidth: 1, borderColor: '#CBD5E1', fontSize: 16 },
 });
